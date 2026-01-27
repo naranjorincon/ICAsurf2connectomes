@@ -9,7 +9,7 @@ This repo is contains scripts to apply various deep learning models that attempt
 <img src="./schematics_images/reconstruction_translation_schematic.png"
      alt="SiT Based Recon/Trans"
      style="float: left; margin-right: 10px;" 
-     width="1000" height="800"/>
+     width="700" height="600"/>
 
 ## Updates
 <details>
