@@ -1,4 +1,4 @@
-# Topography-to-Connectome Transaltions
+# Topography-to-Connectome Translations
 
 For further details on preparing surfaces and general SiT code, see [Simon Dahan's GitHub repo about SiT](https://github.com/metrics-lab/surface-vision-transformers).
 
@@ -36,7 +36,7 @@ This repo is contains scripts to apply various deep learning models that attempt
 
 ## Installation & Set-up
 
-**Python and minionda**
+**Python and miniconda**
 
 Make sure you have python and miniconda. Create an env:
 
