@@ -1,0 +1,54 @@
+# @Author: Samuel Naranjo Rincon
+# @Last Modified time: 2024-02-21 10:56am
+resolution:
+  ico: 6
+  sub_ico: 3
+
+# /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat
+
+data:
+  dataset: ABCD #ABCD, HCPYA, HCPYA_ABCDdr
+  parcellation_name: schaefer 
+  data_path: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/brain_reps_datasets/ABCD/ICA_maps/ICAd15_ico06
+  sub_ids_path: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/brain_reps_datasets/ABCD/schaefer_mats/netmat_d300
+  patches_path: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/patch_extraction
+  translation: ICAd15_schfd300 #scan_age #birth_age -- adapted, but we want to change to netmat pred
+  split: test #train #val/validation # or test
+  channels: 15 
+  parcellation_nodes: 300
+  parcellation_type: full #full, partial correlation mats
+  fs_data_path: d15_fs_LR # needed for HCPYA for now
+  hemisphere: 1L # 1R is one and right, 1L is one and left, 2LR is both and original method
+  norm_flag: False
+  unet_arch: False
+
+output:
+  folder: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/brain_reps_datasets/ABCD/ICA_maps/ICAd15_ico03
+  output_folder_netmat: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/brain_reps_datasets/ABCD/schaefer_mats/netmat_d300
+
+sub_ico_1:
+  num_patches: 80 
+  num_vertices: 561 
+
+sub_ico_2:
+  num_patches: 320 
+  num_vertices: 153
+
+sub_ico_3:
+    num_patches: 1280
+    num_vertices: 45
+
+sub_ico_4:
+    num_patches: 5120
+    num_vertices: 15
+
+sub_ico_5:
+    num_patches: 20480
+    num_vertices: 6 
+
+sub_ico_6:
+  num_patches: 1
+  num_vertices:  40962
+
+
+

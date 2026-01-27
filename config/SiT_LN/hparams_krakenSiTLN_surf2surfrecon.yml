@@ -1,0 +1,129 @@
+# @Author: Samuel Naranjo Rincon
+# @Last Modified time: 2024-10-25
+
+data:
+  data_path: ../data/{}/{} #../data/{}/{}
+  translation: ICAd15_ICAd15 # mesh dim -> nemat dim
+  version: normICAnormICA #normICAdemeanfishzMAT
+  model_type: kSiTLN
+  from_parcellation: 100
+  to_icamap: 15
+  subico: 1
+
+logging:
+  folder_to_save_model: ../logs/SiT/
+  sanity_file_pth: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/batch/kSiTLN_recon_normICAnormICA
+  test_file_pth: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/batch/kSiTLN_recon_normICAnormICA_test.print
+
+  model_out_root: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/model_out
+  sanity_check_version: surf2surfrecon_krakenonly
+
+training:
+  fcn_train: train_MSE_skewloss
+  flag_experiment_ICArecon: True
+  fcn_model_to_use: SurfaceImageTransformer_ICArecon_linear
+  dataset_choice: ABCD # ABCD or ABCD for now at least
+  LR: 0.001 #0.00001 is original
+  bs: 32 # batch size, og is 256
+  val_epoch: 1 #5 is our standard, arbitary so feel free to change.
+  epochs: 30
+  # lamda: 1.5 # absed on literature, ideal is [1,2] between
+  bilateral_condition: False #if true, uses 2LR, else just 1L
+  hemi_cond: 1L
+  channel_specific_condition: True #if true, does predictions on a single channel
+  specific_channel: 14 #0-ICA_dim, so ICAd15 => 0,1,...,14 ## 1 = DMN in this case
+  specific_channel_end: 14 # [6,8,11,14] #int or list is list then its list of channels to exclude
+  netmat_prep_choice: demean #norm or fisherz or demean, None
+  surf_prep_choice: norm
+  parcellation_corr_type: full
+  overfit_condition: False
+  overfit_condition_sub_range: 300 # up to which subj, if overfit_condition false this is ignored
+  VAE_flag: False
+
+testing:
+  immediate_test_flag: True #test after training immediately
+  chosen_test_model: MSE #can be MSE, MAE, RHO
+  same_sample_test: True # if this is true, then out of sample false and vice versa
+  out_of_sample_test: False
+  bs_test: 1
+
+transformer:
+  depth: 6 #layers # O(D*H*(V**x)) dont recall the exponent x but it scales apprx like this so not too high
+  heads: 3 # D=depth=layer, 
+  sit_dim: 192 # tiny-192, small-384
+  dim_head: 64 #64, 128
+  emb_dropout: 0.3
+  dropout: 0.5 # moved this higher, was originall 0.1
+  krak_mse_weight: 1000 #1,000 # recon weight
+  krak_latent_weight: 10 #10 #latent weight
+  krak_corrEYE_weight: 1 #1000
+  skew_weight: 1
+  rho_loss_weight: 1
+  model_details: 122925_d6h3_tiny_adamW_cosinedecay_reconICA_MSEtrain_expICARECON_linear
+
+optimisation:
+  optimiser: AdamW # SGD = stochastic gradent descent; Adam = Adam optimization
+
+Adam:
+  weight_decay: 0.001
+
+AdamW:
+  weight_decay: 0. #originally just this
+  use_scheduler: True #orig is false, but in paper they said they did use scheduler=>cosine decay
+  scheduler: CosineDecay  # CosineDecay, StepLR, ReduceLROnPlateau
+  warmup: True
+  nbr_step_warmup: 50
+  
+SGD:
+  weight_decay: 0.
+  momentum: 0.9
+  nesterov: False
+  
+StepLR: 
+  stepsize: 1000
+  decay: 0.5
+
+CosineDecay:
+  T_max: 30 #5000. is original, # 25 for now because it seems to converge at that epoch which could be a local minima
+  eta_min: 0.000001
+
+CosineDecayRestart:
+  T_0: 25 #Number of iterations until the first restart.
+  T_mult: 1 #A factor by which T_i increases after a restart. Default: 1.
+  eta_min: 0.00001
+
+# CosineDecay:
+#   T_max: 30 #5000. is original, # 25 for now because it seems to converge at that epoch which could be a local minima
+#   eta_min: 0.000001
+  
+# StepLR: 
+#   stepsize: 1000
+#   decay: 0.5
+
+# CosineDecay:
+#   T_max: 5000
+#   eta_min: 0.0001
+
+sub_ico_0:
+    num_patches: 20 
+    num_vertices: 2145 
+
+sub_ico_1:
+  num_patches: 80 
+  num_vertices: 561 
+
+sub_ico_2:
+  num_patches: 320 
+  num_vertices: 153
+
+sub_ico_3:
+    num_patches: 1280
+    num_vertices: 45
+
+sub_ico_4:
+    num_patches: 5120
+    num_vertices: 15
+
+sub_ico_5:
+    num_patches: 20480
+    num_vertices: 6 

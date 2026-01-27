@@ -10,6 +10,7 @@ config/SiT_BGT_VAE/
 config/SiT_LN_VAE/
 data/
 images/
+logs/*.pt
 LocalTransformerTests/
 model_out/
 models/CNN*
@@ -32,4 +33,6 @@ utils/old/
 utils/subj_ids/
 utils/surfaces/resamp*
 utils/surfaces/test*
+.*
+.*/
 

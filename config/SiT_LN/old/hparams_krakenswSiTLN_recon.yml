@@ -1,0 +1,138 @@
+# @Author: Simon Dahan @SD3004
+# @Date:   31-08-2022 01:00:00
+
+MODEL: ms-sit
+
+##################################  DATA & TASK  ##################################
+
+mesh_resolution:
+  ico_mesh: 6 #resolution of the input mesh
+  ico_grid: 5 #resolution of the grid used to extract patches
+  reorder: True #reorder the sequence of patches
+
+sub_ico_0:
+    num_patches: 20 
+    num_vertices: 2145
+
+sub_ico_1:
+    num_patches: 80 
+    num_vertices: 561 
+
+sub_ico_2:
+    num_patches: 320 
+    num_vertices: 153 
+
+sub_ico_3:
+    num_patches: 1280
+    num_vertices: 45
+
+sub_ico_4:
+    num_patches: 5120
+    num_vertices: 15
+
+sub_ico_5:
+    num_patches: 20480
+    num_vertices: 6
+
+data:
+  # data_path: ../data/{}/{} #../data/{}/{}
+  translation: ICAd15_schfd100 # mesh dim -> nemat dim
+  version: normICAdemeanfishzMAT
+  model_type: kBGT_swMSiT_VAE
+  from_parcellation: 100
+  from_icamap: 15
+  path_to_workdir: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/ # path to patching folder w ico indeces #SDNR added extra backwards becasue folder convention different than Dahan
+
+logging:
+  folder_to_save_model: ../logs/SiT/ #"/home/naranjorincon/logs/SiT/" #"../logs/SiT/"
+  sanity_file_pth: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/batch/kswSiTLN_recon_normICAdemeanfishzMAT.print
+  sanity_file_pth_test: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/netmat2surf/batch/kswSiTLN_recon_normICAdemeanfishzMAT_TEST.print
+  model_out_root: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/model_out
+  sanity_check_version: recon_swMSiTLN_krakenonly
+
+##################################  TRAINING  ###################################
+training:
+  fcn_train: train_krakenonly
+  dataset_choice: ABCD #ABCD
+  LR: 0.0003
+  bs: 32
+  bs_test: 1
+  val_epoch: 1
+  epochs: 500 #100 || SDNR changed so starting with 5 to just see if runs good and output is good
+  # gpu: 0
+  bilateral_condition: False #if true, uses 2LR, else just 1L
+  channel_specific_condition: False #if true, does predictions on a single channel
+  specific_channel: 1 #0-ICA_dim, so ICAd15 => 0,1,...,14 ## 1 = DMN in this case
+  netmat_prep_choice: demean_fisherz #norm or fisherz or None
+  parcellation_corr_type: full
+  overfit_condition: False
+  overfit_condition_sub_range: 500 # up to which subj, if overfit_condition false this is ignored
+  VAE_flag: False
+
+testing:
+  immediate_test_flag: True #test after training immediately
+  Test_flag_only: True
+  chosen_test_model: MSE #can be 
+  bs_test: 1
+
+
+###################################  MODEL  ####################################
+transformer:
+  # dim: 48 #96, 48, 192
+  depth: [2,2,6,2] # [1,1,3,1] [2,2,6,2]number of blocks per layer
+  heads: [3,6,12,24] # number of head per layer [3,6,12,24] 
+  # channels: [0,1] #[3,1] for UKB and [0,1] for mindboggle
+  window_size: [64, 64, 64, 320] #[4, 4, 4, 20] #OG=[64,64,64,320] #320,80
+  window_size_factor: 2
+  mlp_ratio: 4
+  qkv_bias: True #default
+  qk_scale: True #default
+  # num_classes: 4950, but should be automatic on model check model architecture defaults
+  dropout: 0.0
+  encoder_model_dim: 192 #tiny, small, => 192,384
+  attention_dropout: 0.0
+  dropout_path: 0.0
+  use_pos_emb: True
+  shifted_attention: True
+  # below is SDNR added to MSSiT-UNET based on prev enc-dec code for schfd100->ICAd15 translation
+  embed_dim: 96 #96 # replaces dim in original code so thats why its commented out also 96 is OG
+  to_icamap: 15
+  krak_mse_weight: 1000 # recon weight
+  krak_latent_weight: 10 #latent weight
+  krak_corrEYE_weight: 1
+  model_details: "d2262_h361224_wz646464320_cosinedecay_recon_krakenonly_072925" # d2262_h361224_wz44420_VAEd10k_demeanL2
+
+##################################  OPTIMISATION  ##################################
+optimisation:
+  optimiser: AdamW # SGD = stochastic gradent descent; Adam = Adam optimization
+
+Adam:
+  weight_decay: 0.001
+  use_scheduler: True #orig is false, but in paper they said they did use scheduler=>cosine decay
+  scheduler: CosineDecay  # CosineDecay, StepLR, ReduceLROnPlateau
+  warmup: True
+  nbr_step_warmup: 50
+
+AdamW:
+  weight_decay: 0.01 #originally just this
+  use_scheduler: True #orig is false, but in paper they said they did use scheduler=>cosine decay
+  scheduler: CosineDecay  # CosineDecay, StepLR, ReduceLROnPlateau
+  warmup: True
+  nbr_step_warmup: 50
+  
+SGD:
+  weight_decay: 0. #default 0.0
+  momentum: 0.9 #default 0.0
+  nesterov: False
+
+####################################  SCHEDULER ####################################
+  
+StepLR: 
+  stepsize: 1000
+  decay: 0.5
+
+CosineDecay:
+  T_max: 250
+  eta_min: 0.0001
+
+####################################################################################

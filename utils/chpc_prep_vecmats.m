@@ -1,0 +1,367 @@
+% to submit job init matlab like this in bash: matlab -nodisplay -nodesktop -r "run /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/utils/chpc_prep_vecmats.m"
+% This script is intended to get netmats for subjects and vectorize them. Then
+% this is added to a csv file that every column = a subj vectorized netmat
+% for a particular brain rep you choose
+expected_working_dir='/ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/utils'; %/Users/snaranjo/Desktop/neurotranslate/mount_point
+addpath(expected_working_dir)
+% addpath('/Users/snaranjo/Desktop/surface-vision-transformers/utils2')
+corr_mat_opts = {'ICA', 'profumo', 'schf', 'glasser', 'yeo', 'grad'};
+datasets = {'HCPAYA', 'ABCD', 'HCPYA_ABCDdr'};
+mat_choice = corr_mat_opts{3};
+dataset_choice = datasets{2};
+computer = 'chpc'; % local or chpc
+resources = 'mount'; %mount or RCIF
+mat_choice_type='full'; % what kind of netmat, full or partial
+ICAdim = [15, 25, 50, 100, 200, 300];
+norm_flag = 0;
+% null_label_perm_flag = 0;
+
+numFeaturesx = 15;
+numFeaturesy = 300;
+task_split = ['ICAd' num2str(numFeaturesx) '_' mat_choice 'd' num2str(numFeaturesy)];
+
+if strcmp(dataset_choice, 'HCPYA')
+    raw_root = '/scratch/tyoeasley/brain_representations';
+    local_root = '/Users/snaranjo/Desktop/neurotranslate/brain_representations';
+    if strcmp(mat_choice, 'profumo')
+        if strcmp(computer, 'local')
+            relevant_rep = 'profumo_reps';
+            netmat_dir = dir([local_root filesep relevant_rep '/netmats/sub-*']);
+        elseif strcmp(computer, 'chpc')
+            relevant_rep = 'profumo_reps';    
+            data_loc = ['HCP_Profumo_cifti_bigdata_1200subs_' num2str(numFeaturesy) 'modes_smooth_5mm_4runs.ppp'];
+            netmat_dir = dir([raw_root filesep relevant_rep filesep data_loc '/NetMats/sub-*']);
+        end
+    elseif strcmp(mat_choice, 'ICA')
+        if strcmp(computer, 'local')
+            relevant_rep = 'ICA_reps';    
+            netmat_dir = dir([local_root filesep relevant_rep '/netmats/sub*']);
+        elseif strcmp(computer, 'chpc')
+            relevant_rep = 'ICA_reps';    
+            data_loc = ['3T_HCP1200_MSMAll_d' num2str(numFeaturesy) '_ts2_Z'];
+            netmat_dir = dir([raw_root filesep relevant_rep filesep data_loc '/NetMats/sub*']);
+            sprintf('ICA dimensions: 15, 25, 50, 100, 200, 300')
+        end
+    elseif strcmp(mat_choice, 'schf')
+        relevant_rep = 'schaefer';    
+        netmat_dir = dir([raw_root filesep relevant_rep '/NetMats/d' num2str(numFeaturesy) '/sub*']);
+        sprintf('Schaefer dimensions: 100, 200, 300, 600, 1000')
+    end
+
+elseif strcmp(dataset_choice, 'ABCD')
+    % /Users/snaranjo/Desktop/neurotranslate/mount_point
+    sprintf("Now, inside ABCD dir for netmats From Fyzeen")
+    janine_shared_path='/ceph/chpc/shared/janine_bijsterbosch_group'; %/Users/snaranjo/Desktop/neurotranslate/mount_point/
+    raw_root=[janine_shared_path '/naranjorincon_scratch/NeuroTranslate/ABCD_NetMats'];
+    if strcmp(mat_choice, 'schf')
+        if strcmp(mat_choice_type, 'partial')
+            netmat_dir = dir([raw_root '/schaefer' num2str(numFeaturesy) ' /partial_netmats/NDA*']);
+        elseif strcmp(mat_choice_type, 'full')
+            netmat_dir = dir([raw_root '/schaefer' num2str(numFeaturesy) '/netmats/NDA*']);
+        end
+    else strcmp(mat_choice, 'glasser')
+        if strcmp(mat_choice_type, 'partial')
+            netmat_dir = dir([raw_root '/glasser' num2str(numFeaturesy) '/partial_netmats/NDA*']);
+        elseif strcmp(mat_choice_type, 'full')
+            netmat_dir = dir([raw_root '/glasser' num2str(numFeaturesy) '/netmats/NDA*']);
+        end
+        % sprintf([raw_root '/glasser360/partial_netmats/NDA*'])
+    end
+
+elseif strcmp(dataset_choice, 'HCPYA_ABCDdr')
+    % /Users/snaranjo/Desktop/neurotranslate/mount_point
+    sprintf("Now, inside HCPYA_ABCDdr dir for netmats From Fyzeen")
+    janine_shared_path='/Users/snaranjo/Desktop/neurotranslate/mount_point/ceph/chpc/shared/janine_bijsterbosch_group';
+    raw_root=[janine_shared_path '/naranjorincon_scratch/NeuroTranslate/ABCD_NetMats'];
+    if strcmp(mat_choice, 'schf')
+        if strcmp(mat_choice_type, 'partial')
+            netmat_dir = dir([raw_root '/schaefer' num2str(numFeaturesy) '/partial_netmats/NDA*']);
+        elseif strcmp(mat_choice_type, 'full')
+            netmat_dir = dir([raw_root '/schaefer' num2str(numFeaturesy) '/netmats/NDA*']);
+        end
+          
+    end
+end
+
+%% add netmap folder location cause they are all there only need 1 subject's
+% info on location, hence the netmat_dir(1).folder
+addpath(netmat_dir(1).folder);
+subii_num = length(netmat_dir);
+sprintf(['number of subjects:' num2str(subii_num)])
+vec_netmats = zeros(((numFeaturesy*(numFeaturesy-1))/2),length(netmat_dir));
+tic
+parfor subii = 1:subii_num
+    cur_netmat_subii = readmatrix(netmat_dir(subii).name);
+    
+    % profumo has -1 in diag so we gotta switch it to 1, all others are
+    % good to go
+    if strcmp(mat_choice,'profumo')
+       I = -1 * eye(size(cur_netmat_subii,1));
+       diag_idx = find(I == -1);
+       cur_netmat_subii(diag_idx) = 1;
+    end
+
+    if mod(subii,500) == 0
+        sprintf(['running subject:' num2str(subii)])
+    end
+    %sprintf(['lenght of triu is this:' size(vector(cur_netmat_subii),1)])
+    % now, lets vec them and save them in a matrix where col = subj, row = 
+    % element in upper tri of fc netmat, saved into columns per subject
+    vec_netmats(:,subii) = vector(cur_netmat_subii);
+end
+toc
+
+%% look at plot of vectorized netmats to ensure all is good
+vec = vec_netmats(:,100);
+% Determine the size of the original square matrix
+% Solve n(n-1)/2 = length(vec) to find n
+L = length(vec);
+n = ceil((1 + sqrt(1 + 8*L)) / 2);
+
+if n*(n-1)/2 ~= L
+    error('Input vector length is not valid for upper triangle of square matrix without diagonal.');
+end
+
+% Initialize a square matrix of zeros
+mat = zeros(n);
+
+% Fill upper triangle (excluding diagonal) with the vector values
+idx = find(triu(ones(n), 1));  % Indices of upper triangle (above diagonal)
+mat(idx) = vec;
+
+% Reflect upper triangle to lower triangle to make it symmetric
+mat = mat + mat';
+
+% Plot using imagesc
+figure,
+imagesc(mat);
+colorbar;
+axis equal;
+title('Reconstructed Symmetric Matrix');
+
+
+%%
+sprintf("Done with vectorizing netmats.")
+check = sum(sum(isnan(vec_netmats)));
+check_inf = sum(sum(isinf(vec_netmats)));
+
+% index of nans
+nan_idx = find(sum(isnan(vec_netmats))>0);
+tt = vec_netmats(nan_idx);
+
+if strcmp(dataset_choice, 'ABCD')
+    % Get the session/subject IDs as a cell array of strings
+    sessionIDs_original_netmat = {netmat_dir(:).name}';  
+    sessionIDs_original_netmat = erase(sessionIDs_original_netmat, '.csv');
+
+end
+
+subjects_with_nan = sessionIDs_original_netmat(nan_idx);
+writecell(subjects_with_nan,'subjects_with_nan.txt','Delimiter',',')
+
+% % check viz netmat lables look as expected
+% img_path = '/scratch/naranjorincon/surface-vision-transformers/images';
+% if ~isfolder(img_path)
+%     mkdir(img_path)
+% end
+% output_dim = numFeaturesy;
+% mat_temp = zeros(output_dim);
+% % up tri of cluster of each node-node (edge)
+% mat_temp(triu(ones(output_dim),1) > 0) = vec_netmats(:,10);
+% checkmat = mat_temp + mat_temp';
+% figure, imagesc(checkmat, [-0.5 0.5]), colorbar
+% fig_nm = [num2str(numFeaturesx) '_Originalvecmat'];
+% saveas(gcf,[img_path filesep fig_nm '.bmp'])
+
+
+if strcmp(computer,'local')
+    root_for_below = '/Users/snaranjo/Desktop/neurotranslate/mount_point/ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch';
+elseif strcmp(computer,'chpc')
+    %/Users/snaranjo/Desktop/neurotranslate/mount_point
+    root_for_below = '/ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch';
+end
+
+% output_dir_local = [root_for_below '/surface-vision-transformers/labels/HCPdb/' task_split];
+% output_dir_chpc = [root_for_below '/NeuroTranslate/brain_reps_datasets/ABCD/schaefer_mats/netmat_d100'];
+% if strcmp(computer, 'local')
+%     mkdir(output_dir_local)
+% elseif strcmp(computer, 'chpc')
+%     mkdir(output_dir_chpc)
+% end
+
+% save this nonesense meng
+if strcmp(computer,'local')
+    output_mat = zeros(size(vec_netmats,1)+1,size(vec_netmats,2)); % add one so top row is index of subj per col
+    output_mat(1,:) = 1:1:subii_num;
+    output_mat(2:end,:) = vec_netmats;
+
+    % split into 80/10/10 train/validate/test
+    train = output_mat(:,1:8);
+    writematrix(train, [output_dir_local '/vecmats.csv'])
+
+    test = output_mat(:,9);
+    writematrix(test, [output_dir_local '/vecmats_test.csv'])
+
+    validation = output_mat(:,10);
+    writematrix(validation, [output_dir_local '/vecmats_validation.csv'])
+
+elseif strcmp(computer,'chpc')
+
+    if strcmp(dataset_choice,'HPCYA')
+        output_mat = zeros(size(vec_netmats,1)+1,size(vec_netmats,2)); % add one so top row is index of subj per col
+        output_mat(1,:) = 1:1:subii_num;
+        output_mat(2:end,:) = vec_netmats;
+        
+        training_path = [root_for_below '/surface-vision-transformers/utils2/training_subidx.csv'];
+        validataion_path = [root_for_below '/surface-vision-transformers/utils2/validation_subidx.csv'];
+        % first path must be training then validation
+        [train_list, valid_list, test_list] = get_subjperm_twins(training_path, validataion_path);
+    
+        train = output_mat(:,train_list);
+        validation = output_mat(:,valid_list);
+        test = output_mat(:,test_list);
+    
+        cell_of_lists = {train_list, valid_list, test_list};
+    
+        % normal output
+        writematrix(train, [output_dir_chpc '/vecmats_upt.csv'])
+        writematrix(validation, [output_dir_chpc '/vecmats_validation_upt.csv'])
+        writematrix(test, [output_dir_chpc '/vecmats_test_upt.csv'])
+    elseif strcmp(dataset_choice,'ABCD')
+
+        if strcmp(mat_choice, 'schf')
+            split_path = [root_for_below '/NeuroTranslate/brain_reps_datasets/ABCD/schaefer_mats'];
+        elseif strcmp(mat_choice, 'glasser')
+            split_path = [root_for_below '/NeuroTranslate/brain_reps_datasets/ABCD/glasser_mats'];
+        end
+
+        full_ID = [split_path '/ABCD_full_ID_site.csv'];
+        
+        full_table = readtable(full_ID);
+        train_table = readtable([split_path '/ABCD_train_ID_site.csv']);
+        val_table   = readtable([split_path '/ABCD_val_ID_site.csv']);
+        test_table  = readtable([split_path '/ABCD_test_ID_site.csv']);
+        
+        full_IDs = full_table.Session;
+        train_IDs = train_table.Session;
+        val_IDs   = val_table.Session;
+        test_IDs  = test_table.Session;
+
+        % match subject IDs to column idx
+        [~, train_idx] = ismember(train_IDs, sessionIDs_original_netmat);
+        [~, val_idx]   = ismember(val_IDs, sessionIDs_original_netmat);
+        [~, test_idx]  = ismember(test_IDs, sessionIDs_original_netmat);
+        
+        train_mat = vec_netmats(:, train_idx);  % 4950 × num_train
+        val_mat   = vec_netmats(:, val_idx);    % 4950 × num_val
+        test_mat  = vec_netmats(:, test_idx); 
+        
+        % Convert to tables
+        train_table = array2table(train_mat, 'VariableNames', train_IDs);
+        val_table   = array2table(val_mat, 'VariableNames', val_IDs);
+        test_table  = array2table(test_mat, 'VariableNames', test_IDs);
+        
+        if strcmp(mat_choice_type,'full') 
+            writetable(train_table, [split_path '/netmat_d' int2str(numFeaturesy) '/train_netmat.csv']);
+            writetable(val_table,   [split_path '/netmat_d' int2str(numFeaturesy) '/val_netmat.csv']);
+            writetable(test_table,  [split_path '/netmat_d' int2str(numFeaturesy) '/test_netmat.csv']);
+        elseif strcmp(mat_choice_type,'partial')
+            writetable(train_table, [split_path '/partialnetmat_d' int2str(numFeaturesy) '/train_partialnetmat.csv']);
+            writetable(val_table,   [split_path '/partialnetmat_d' int2str(numFeaturesy) '/val_partialnetmat.csv']);
+            writetable(test_table,  [split_path '/partialnetmat_d' int2str(numFeaturesy) '/test_partialnetmat.csv']);
+        end
+
+    end
+end
+
+% below is to see where the NaN subjects got placed in, for now it seems
+% 3/5 are in train and 1/4 is in validation and another one
+% "NDARINV25RHG3PJ" idx=677/8905 is in non of the 3 likely because we are
+% matching with the N=8673 that also have surface
+% idx{5,1} = [];
+% for ii = 1:size(subjects_with_nan,1)
+%     idx{ii} = find(test_IDs == string(subjects_with_nan(ii)));
+% end
+
+%%
+% split_path_02='/Users/snaranjo/Desktop/neurotranslate/mount_point//ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/brain_reps_datasets/ABCD/schaefer_mats/netmat_d100/';
+% % Labels off the press: (4950, 7121)
+% % Labels Transposed to be SUBxNETMAT: (7121, 4950)
+% get_vector_netmats = readmatrix([split_path_02 '/train_netmat.csv']);
+% vec1 = get_vector_netmats';
+% vec = vec1(end,:);
+% % Determine the size of the original square matrix
+% % Solve n(n-1)/2 = length(vec) to find n
+% L = length(vec);
+% n = ceil((1 + sqrt(1 + 8*L)) / 2);
+% 
+% if n*(n-1)/2 ~= L
+%     error('Input vector length is not valid for upper triangle of square matrix without diagonal.');
+% end
+% 
+% % Initialize a square matrix of zeros
+% mat = zeros(n);
+% 
+% % Fill upper triangle (excluding diagonal) with the vector values
+% idx = find(triu(ones(n), 1));  % Indices of upper triangle (above diagonal)
+% mat(idx) = vec;
+% 
+% % Reflect upper triangle to lower triangle to make it symmetric
+% mat = mat + mat';
+% 
+% % Plot using imagesc
+% figure,
+% imagesc(mat);
+% colorbar;
+% axis equal;
+% title('Reconstructed Symmetric Matrix');
+
+%%
+% 
+% 
+% get_curr_setup_train = readmatrix([root_for_below '/surface-vision-transformers/labels/HCPdb/surf2mat/train.csv']);
+% get_curr_setup_validate = readmatrix([root_for_below '/surface-vision-transformers/labels/HCPdb/surf2mat/validation.csv']);
+% get_curr_setup_test = readmatrix([root_for_below '/surface-vision-transformers/labels/HCPdb/surf2mat/test.csv']);
+% concat_them = cat(1,get_curr_setup_train, get_curr_setup_validate, get_curr_setup_test);
+% % concat_them = sort(concat_them,1);
+% sprintf('concatonated the setups.')
+% % this is format, makesure to follow based on this: cell_of_lists = {train_list, valid_list, test_list};
+% new_csv_data{1,length(cell_of_lists)} = [];
+% for ll = 1:length(cell_of_lists)
+%     curr_list = cell_of_lists{ll}; % choose curr list and loop for each to get subject IDS based on train/val/test rand split
+% 
+%     get_idx_inds = ismember(concat_them(:,2), curr_list);
+%     get_ids = concat_them(get_idx_inds == 1);
+%     get_sorted_list = sort(curr_list); % sorts list to match order of get_ids, needs to be transposed for later cat
+%     % now they match, lets fuse them into a single list with ids and
+%     % train/val/test split
+%     new_csv_data{ll} = cat(2,get_ids,get_sorted_list);
+% end
+% 
+% sprintf('new_csv_file completed.')
+% 
+% % re-doing subject id lists because not random
+% df_names = {'ids', 'num'};
+% 
+% % save whole ones too to keep with random people in each train/val/test
+% % split group
+% train_info_csv = [df_names; num2cell(new_csv_data{1})];
+% valid_info_csv = [df_names; num2cell(new_csv_data{2})];
+% test_info_csv = [df_names; num2cell(new_csv_data{3})];
+% if strcmp(computer,'local')
+%     writecell(train_info_csv, [output_dir_local '/train_upt.csv'])
+%     writecell(valid_info_csv, [output_dir_local '/validation_upt.csv'])
+%     writecell(test_info_csv, [output_dir_local '/test_upt.csv'])
+% elseif strcmp(computer,'chpc')
+%     writecell(train_info_csv, [output_dir_chpc '/train_upt.csv'])
+%     writecell(valid_info_csv, [output_dir_chpc '/validation_upt.csv'])
+%     writecell(test_info_csv, [output_dir_chpc '/test_upt.csv'])
+% end
+% 
+% 
+% % copy the already prepared train, validate, test csv subj num files
+% copyfile('/scratch/naranjorincon/surface-vision-transformers/labels/HCPdb/surf2mat/train.csv', output_dir_chpc)
+% copyfile('/scratch/naranjorincon/surface-vision-transformers/labels/HCPdb/surf2mat/validation.csv', output_dir_chpc)
+% copyfile('/scratch/naranjorincon/surface-vision-transformers/labels/HCPdb/surf2mat/test.csv', output_dir_chpc)
+
+%end

@@ -1,0 +1,95 @@
+# @Author: Samuel Naranjo Rincon
+# @Last Modified time: 2024-10-25
+
+data:
+  data_path: ../data/{}/{} #../data/{}/{}
+  translation: ICAd15_schfd100 # mesh dim -> nemat dim
+  version: normICAdemeanfishzMAT
+  model_type: kSiTLN
+  from_parcellation: 100
+  to_icamap: 15
+
+logging:
+  folder_to_save_model: ../logs/SiT/
+  sanity_file_pth: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/batch/kLinearEnc_recon_normICAdemeanfishzMAT.print
+  model_out_root: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/model_out
+  sanity_check_version: recon_krakenonly
+
+training:
+  fcn_train: train_krakenonly
+  dataset_choice: ABCD # ABCD or ABCD for now at least
+  LR: 0.0001 #0.00001 is original
+  bs: 32 # batch size, og is 256
+  val_epoch: 1 #5 is our standard, arbitary so feel free to change.
+  epochs: 100
+  bilateral_condition: False #if true, uses 2LR, else just 1L
+  hemi_cond: 1L
+  channel_specific_condition: False #if true, does predictions on a single channel
+  specific_channel: 1 #0-ICA_dim, so ICAd15 => 0,1,...,14 ## 1 = DMN in this case
+  netmat_prep_choice: demean_fisherz #norm or fisherz or demean, None
+  surf_prep_choice: norm_linear_enc
+  parcellation_corr_type: full
+  overfit_condition: False
+  overfit_condition_sub_range: 300 # up to which subj, if overfit_condition false this is ignored
+  VAE_flag: False
+  PCA_flag: False
+
+testing:
+  immediate_test_flag: True #test after training immediately
+  Test_flag_only: False
+  chosen_test_model: LAST #can be 
+  bs_test: 1
+
+linear_enc:
+  emb_dropout: 0.5
+  dropout: 0.1 # moved this higher, was originall 0.1
+  krak_mse_weight: 1000 #1000 # recon weight
+  krak_latent_weight: 10 #10 #latent weight
+  krak_corrEYE_weight: 1 #1000
+  model_details: LinearEnc_adamW_cosinedecay_recon_krakenonly_080725
+
+optimisation:
+  optimiser: AdamW # SGD = stochastic gradent descent; Adam = Adam optimization
+
+Adam:
+  weight_decay: 0.001
+
+AdamW:
+  weight_decay: 0. #originally just this
+  use_scheduler: True #orig is false, but in paper they said they did use scheduler=>cosine decay
+  scheduler: CosineDecay  # CosineDecay, StepLR, ReduceLROnPlateau
+  warmup: True
+  nbr_step_warmup: 50
+  
+SGD:
+  weight_decay: 0.
+  momentum: 0.9
+  nesterov: False
+  
+StepLR: 
+  stepsize: 1000
+  decay: 0.5
+
+CosineDecay:
+  T_max: 5000
+  eta_min: 0.0001
+  
+# StepLR: 
+#   stepsize: 1000
+#   decay: 0.5
+
+# CosineDecay:
+#   T_max: 5000
+#   eta_min: 0.0001
+
+# sub_ico_0:
+#     num_patches: 20 
+#     num_vertices: 2145 
+
+# sub_ico_1:
+#     num_patches: 80 
+#     num_vertices: 561 
+
+# sub_ico_2:
+#     num_patches: 320
+#     num_vertices: 153 
