@@ -1,0 +1,73 @@
+appdirs==1.4.4
+Bottleneck @ file:///work/ci_py311/bottleneck_1676827011612/work
+brotlipy==0.7.0
+certifi @ file:///croot/certifi_1717618050233/work/certifi
+cffi @ file:///work/ci_py311/cffi_1676822533496/work
+charset-normalizer @ file:///tmp/build/80754af9/charset-normalizer_1630003229654/work
+contourpy @ file:///work/ci_py311/contourpy_1676827066340/work
+cryptography @ file:///croot/cryptography_1686613057838/work
+cycler @ file:///tmp/build/80754af9/cycler_1637851556182/work
+einops @ file:///home/conda/feedstock_root/build_artifacts/einops_1714285159399/work
+filelock @ file:///work/ci_py311/filelock_1676823024085/work
+fonttools==4.25.0
+fsspec==2024.6.1
+gmpy2 @ file:///work/ci_py311/gmpy2_1676839849213/work
+huggingface-hub==0.24.6
+idna @ file:///work/ci_py311/idna_1676822698822/work
+Jinja2 @ file:///work/ci_py311/jinja2_1676823587943/work
+joblib @ file:///croot/joblib_1685113087166/work
+kiwisolver @ file:///work/ci_py311/kiwisolver_1676827230232/work
+littleutils==0.2.2
+MarkupSafe @ file:///work/ci_py311/markupsafe_1676823507015/work
+matplotlib @ file:///croot/matplotlib-suite_1679593461707/work
+mkl-fft==1.3.6
+mkl-random @ file:///work/mkl/mkl_random_1682950433854/work
+mkl-service==2.4.0
+monai==1.3.2
+monai-generative==0.2.3
+mpmath==1.2.1
+munkres==1.1.4
+networkx @ file:///croot/networkx_1678964333703/work
+nibabel==5.2.1
+numexpr @ file:///croot/numexpr_1683221822650/work
+numpy==1.26.4
+outdated @ file:///home/conda/feedstock_root/build_artifacts/outdated_1667391529811/work
+packaging @ file:///croot/packaging_1678965309396/work
+pandas==1.5.3
+pandas-flavor==0.2.0
+patsy @ file:///home/conda/feedstock_root/build_artifacts/patsy_1665356157073/work
+Pillow==9.4.0
+pingouin @ file:///home/conda/feedstock_root/build_artifacts/pingouin_1672372575568/work
+ply==3.11
+pooch @ file:///tmp/build/80754af9/pooch_1623324770023/work
+pycparser @ file:///tmp/build/80754af9/pycparser_1636541352034/work
+pyOpenSSL @ file:///croot/pyopenssl_1678965284384/work
+pyparsing @ file:///work/ci_py311/pyparsing_1677811559502/work
+PyQt5-sip==12.11.0
+PySocks @ file:///work/ci_py311/pysocks_1676822712504/work
+python-dateutil @ file:///tmp/build/80754af9/python-dateutil_1626374649649/work
+pytz @ file:///work/ci_py311/pytz_1676825004346/work
+PyYAML==6.0.2
+requests @ file:///croot/requests_1682607517574/work
+safetensors==0.4.4
+scikit-learn @ file:///croot/scikit-learn_1684954695550/work
+scipy==1.16.2
+seaborn @ file:///home/conda/feedstock_root/build_artifacts/seaborn-split_1672497695270/work
+sip @ file:///work/ci_py311/sip_1676825117084/work
+six @ file:///tmp/build/80754af9/six_1644875935023/work
+statsmodels @ file:///croot/statsmodels_1689937266057/work
+sympy @ file:///work/ci_py311_2/sympy_1679339311852/work
+tabulate @ file:///home/conda/feedstock_root/build_artifacts/tabulate_1665138452165/work
+threadpoolctl @ file:///Users/ktietz/demo/mc3/conda-bld/threadpoolctl_1629802263681/work
+timm==1.0.8
+toml @ file:///tmp/build/80754af9/toml_1616166611790/work
+torch==2.0.1
+torchaudio==2.0.2
+torchvision==0.15.2
+tornado @ file:///work/ci_py311/tornado_1676823418767/work
+tqdm==4.66.5
+triton==2.0.0
+typing_extensions @ file:///croot/typing_extensions_1686601443660/work
+urllib3 @ file:///croot/urllib3_1686163155763/work
+vit-pytorch @ file:///home/conda/feedstock_root/build_artifacts/vit-pytorch_1715311967807/work
+xarray @ file:///home/conda/feedstock_root/build_artifacts/xarray_1689599939832/work

@@ -1,5 +1,5 @@
 # @Author: Samuel Naranjo Rincon
-# @Last Modified time: 2024-10-25
+# @Last Modified time: JAN 27 2026
 
 data:
   data_path: ../data/{}/{} #../data/{}/{}
@@ -21,7 +21,7 @@ logging:
 training:
   fcn_train: train_MSE_skewloss
   flag_experiment_ICArecon: True
-  fcn_model_to_use: SurfaceImageTransformer_ICArecon_linear
+  fcn_model_to_use: SurfaceImageTransformer_ICArecon
   dataset_choice: ABCD # ABCD or ABCD for now at least
   LR: 0.001 #0.00001 is original
   bs: 32 # batch size, og is 256
@@ -59,7 +59,7 @@ transformer:
   krak_corrEYE_weight: 1 #1000
   skew_weight: 1
   rho_loss_weight: 1
-  model_details: 122925_d6h3_tiny_adamW_cosinedecay_reconICA_MSEtrain_expICARECON_linear
+  model_details: 122925_d6h3_tiny_adamW_cosinedecay_reconICA_MSEtrain_expICARECON
 
 optimisation:
   optimiser: AdamW # SGD = stochastic gradent descent; Adam = Adam optimization

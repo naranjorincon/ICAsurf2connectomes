@@ -1,5 +1,5 @@
 # @Author: Samuel Naranjo Rincón
-# @Last Modified time: 2024-10-19
+# @Last Modified time: JAN 27 2026
 
 data:
   data_path: ../data/{}/{} #../data/{}/{}
@@ -8,7 +8,7 @@ data:
   model_type: kSiTLN
   from_parcellation: 100
   to_icamap: 15
-  icores: 4
+  icores: 2
 
 logging:
   folder_to_save_model: ../logs/SiT/

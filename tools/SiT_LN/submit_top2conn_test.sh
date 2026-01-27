@@ -25,10 +25,10 @@ for yml_file in $(find "$yaml_loc" -type f -name "$condition.yml" -print); do
     find "$yaml_loc" -type f -name "$condition.yml"
 
     echo Runnign This preprocessing settings file: "$yml_file"
-    python3 ./${model_type}/krakenloss_SiT_test.py "$yml_file"
+    python3 ./${model_type}/top2conn_test.py "$yml_file"
 
     # echo Finished with yml file: $yml_file
-    python3 ${netmat2surf_path}/utils/viz_krakenBGT_outputs_EXAMmodels.py "$yml_file"
+    python3 ${netmat2surf_path}/utils/viz_top2conn_outputs_EXAMmodels.py "$yml_file"
 
     # also downstream analyses
     python3 ${netmat2surf_path}/utils/downstream_analyses.py "$yml_file"

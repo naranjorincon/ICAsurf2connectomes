@@ -20,7 +20,7 @@ model_type="SiT_LN"
 yaml_loc="${netmat2surf_path}/config/${model_type}"
 cd ${yaml_loc} #should be in config/../ path
 
-condition="hparams_krakenSiTLN_recon.yml" # kept hparams at begining bc wildcard at start will include .hparams file(s)
+condition="hparams_SiTLN_recon.yml" # kept hparams at begining bc wildcard at start will include .hparams file(s)
 chosen_param_config=$(find "$yaml_loc" -type f -name "$condition")
 echo chosen param file is: ${chosen_param_config}
 
@@ -36,10 +36,10 @@ echo "param file created, copied, and saved at tmp path! If you want to submit a
 
 echo "Using --> ${netmat2surf_path}/tmp_files/${model_type}/config_${config_model_name}.yml" # ${chosen_param_config}
 
-python3 ${netmat2surf_path}/tools/${model_type}/krakenloss_SiT_train.py ${netmat2surf_path}/tmp_files/${model_type}/config_${config_model_name}.yml #${chosen_param_config}
+python3 ${netmat2surf_path}/tools/${model_type}/top2conn_train.py ${netmat2surf_path}/tmp_files/${model_type}/config_${config_model_name}.yml #${chosen_param_config}
 
 # after training and test, visualize it
-python3 ${netmat2surf_path}/utils/viz_krakenBGT_outputs_EXAMmodels.py ${netmat2surf_path}/tmp_files/${model_type}/config_${config_model_name}.yml
+python3 ${netmat2surf_path}/utils/viz_top2conn_outputs_EXAMmodels.py ${netmat2surf_path}/tmp_files/${model_type}/config_${config_model_name}.yml
 
 # then look at downstream analyses
 python3 ${netmat2surf_path}/utils/downstream_analyses.py ${netmat2surf_path}/tmp_files/${model_type}/config_${config_model_name}.yml
