@@ -16,7 +16,7 @@ This repo is contains scripts to apply various deep learning models that attempt
     <summary><b> V.1.0.0</b></summary>
     Initial commits on JAN-17-2026
     <ul type="circle">
-        <li> First version of the topography-to-connectome translator architecture. Still needs work on some areas and will be streamlined soon. (1) Walks user through preparing the CIFTI files of resampled surface cortical data. (2) Has *.yml files used for hyperparameter tuning and preparing the CIFTI files. (3) Trans and tests models (option to do it in the same sequence of steps or sepeately). (4) Has regular python and jupyter notebook scripts that also walk the user through visualizations and downstream analyses. </li>
+        <li> First version of the topography-to-connectome translator architecture. Still needs work on some areas and will be streamlined soon. (1) Walks user through preparing the CIFTI files of resampled surface cortical data. (2) Has *.yml files used for hyperparameter tuning and preparing the CIFTI files. (3) Trains and tests models (option to do it in the same sequence of steps or sepeately). (4) Has regular python and jupyter notebook scripts that also walk the user through visualizations and downstream analyses. </li>
     </ul>
 </details>
 
