@@ -641,498 +641,75 @@ class SurfaceImageTransformer_VAE_ICArecon(nn.Module):
         final_x = self.mlp_head(latent_step_identity)
         return final_x, mu, log_var
 
-# class SiT_BGT_VAE(nn.Module):
-#     def __init__(self, 
-#                  dim_model, 
-#                  encoder_depth, 
-#                  nhead, 
-#                  decoder_input_dim, 
-#                  decoder_depth, 
-#                  VAE_latent_dim=10000, 
-#                  latent_length=102, 
-#                  num_channels=15, 
-#                  num_patches=320, 
-#                  num_verteces=153,
-#                  dropout=0.1):
-#         super(SiT_BGT_VAE, self).__init__()
+# class SGT_VAE(nn.Module):
+#     def __init__(self, *,
+#                         dim, 
+#                         depth,
+#                         heads,
+#                         num_patches = 320,
+#                         upper_tri=4950, #parcellation
+#                         num_channels =4,
+#                         num_vertices = 2145,
+#                         dim_head = 64,
+#                         dropout = 0.,
+#                         emb_dropout = 0.,
+#                         VAE_latent_dim=10e3,
+#                         latent_samples=1000 #Sampling
+#                         ):
 
-#         self.dim_model = dim_model
-#         self.input_dim = decoder_input_dim
-#         self.latent_length = latent_length
+#         super().__init__()
 
-#         self.flatten_to_high_dim = nn.Conv1d(in_channels=decoder_input_dim, out_channels=latent_length*dim_model, kernel_size=1, groups=latent_length)
-#         # self.positional_encoding = PositionalEncoding(d_model=dim_model, seq_len=latent_length, dropout=dropout)
+#         self.latent_samples = latent_samples
+#         self.VAE_latent_dim = VAE_latent_dim
+#         patch_dim = num_channels * num_vertices
+#         mlp_dim = 4*dim #4 times embedding dimension according to DeT (data efficient transformers)
+#         # inputs has size = b * c * n * v
+#         self.to_patch_embedding = nn.Sequential(
+#             Rearrange('b c n v  -> b n (v c)'),
+#             nn.Linear(patch_dim, dim),
+#         )
 
-#         self.encoder = EncoderSiT(dim=dim_model, 
-#                                   depth=encoder_depth, 
-#                                   heads=nhead, 
-#                                   num_channels=num_channels,  
-#                                   num_patches=num_patches, 
-#                                   num_vertices=num_verteces, 
-#                                   dropout=dropout,
-#                                   output_length=latent_length,
-#                                   emb_dropout=0.1)
-        
-#         self.fc_mu = nn.Linear(dim_model * latent_length, VAE_latent_dim)
-#         self.fc_var = nn.Linear(dim_model * latent_length, VAE_latent_dim)
+#         self.pos_embedding = nn.Parameter(torch.randn(1, num_patches, dim)) #+1 to num_patches for original cause regression token
+#         self.dropout = nn.Dropout(emb_dropout)
 
-#         self.vae_latent_to_encoder_out = nn.Linear(VAE_latent_dim, dim_model * latent_length)
-        
-#         decoder_dim_feedforward = 4 * decoder_input_dim
-#         self.decoder_layers = nn.ModuleList([TransformerDecoderBlock(input_dim=decoder_input_dim, d_model=dim_model, nhead=nhead, dim_feedforward=decoder_dim_feedforward) for _ in range(decoder_depth)])
+#         self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, dropout)
 
-#         self.projection = nn.Conv1d(in_channels=latent_length*dim_model, out_channels=decoder_input_dim, kernel_size=1, groups=latent_length)
-#         # num_out_nodes = 100
-#         # extra_start_tokens=1
-#         # self.projection = MaskedLinear(in_features=latent_length*dim_model, out_features=int((num_out_nodes * (num_out_nodes-1)) / 2), mask=create_mask(num_out_nodes=num_out_nodes, latent_length=latent_length, num_extra_start_tokens=extra_start_tokens))
+#         self.to_latent = nn.Sequential(Rearrange('b n d  -> b (n d)'))
+
+#         self.fc_mu = nn.Linear(num_patches*dim, self.VAE_latent_dim) # linear project from batch x 10k -> batch x vae_latent
+#         self.fc_var = nn.Linear(num_patches*dim, self.VAE_latent_dim)
+
+#         self.mlp_head = nn.Sequential(
+#             nn.LayerNorm(self.VAE_latent_dim),
+#             nn.GELU(),
+#             nn.Linear(self.VAE_latent_dim, upper_tri)
+#         )
 
 #     def _reset_parameters(self):
 #         for p in self.parameters():
 #             if p.dim() > 1:
 #                 nn.init.xavier_uniform_(p)
 
+#     def forward(self, img):
+#         b,c,n,v = img.shape
+#         x = self.to_patch_embedding(img)
+#         # b, n, _ = x.shape
 
-#     def encode(self, src):
-#         x, latent = self.encoder(src)
-#         x = x.view(x.size()[0], -1) # reshape to [b x model_dim * latent_length]
+#         x += self.pos_embedding#[:, :(n + 1)]
+#         x = self.dropout(x)
 
+#         x = self.transformer(x)
+#         x = self.to_latent(x) # collapses into a vector to extract mean and var
+
+#         # reparam trick
 #         mu = self.fc_mu(x)
 #         log_var = self.fc_var(x)
-
-#         return [x, mu, log_var]
-    
-#     def decode(self, tgt, encoder_out, tgt_mask):    
-#         b, _ = tgt.size()
-        
-#         # Project to high-dimensional space
-#         tgt = self.flatten_to_high_dim(tgt.unsqueeze(-1))
-#         tgt = tgt.view(b, -1, self.dim_model)
-                
-#         # Apply positional encoding
-#         # tgt = self.positional_encoding(tgt)
-
-#         # Reparameterization trick to sample from latent space
-#         mu = encoder_out[0]
-#         log_var = encoder_out[1]
-#         std = torch.exp(0.5 * log_var)
-#         epsilon = torch.randn_like(std)
-#         z = mu + (std * epsilon)
-
-#         vae_in_encoder_space = self.vae_latent_to_encoder_out(z)
-#         vae_in_encoder_space = vae_in_encoder_space.view(b, self.latent_length, self.dim_model)
-
-#         for layer in self.decoder_layers:
-#             tgt, masked_attn_weights, cross_attn_weights = layer(tgt=tgt, memory=vae_in_encoder_space, tgt_mask=tgt_mask)
-
-#         tgt = tgt.view(b, -1)
-#         tgt = self.projection(tgt.unsqueeze(-1))
-
-#         return tgt #torch.tanh(tgt) 
-
-
-#     def forward(self, src, tgt, tgt_mask, dropout=0.1):
-#         b, _ = tgt.size()
-
-#         # Project to high-dimensional space
-#         tgt = self.flatten_to_high_dim(tgt.unsqueeze(-1))
-#         tgt = tgt.view(b, -1, self.dim_model)
-        
-#         # Apply positional encoding
-#         # tgt = self.positional_encoding(tgt)
-
-#         encoder_out = self.encode(src)
-        
-#         # Reparameterization trick to sample from latent space
-#         mu = encoder_out[1]
-#         log_var = encoder_out[2]
-#         std = torch.exp(0.5 * log_var)
-#         epsilon = torch.randn_like(std)
-#         z = mu + (std * epsilon)
-
-#         vae_in_encoder_space = self.vae_latent_to_encoder_out(z)
-#         vae_in_encoder_space = vae_in_encoder_space.view(b, self.latent_length, self.dim_model)
-
-#         for layer in self.decoder_layers:
-#             tgt, masked_attn_weights, cross_attn_weights = layer(tgt=tgt, memory=vae_in_encoder_space, tgt_mask=tgt_mask)
-        
-#         tgt = tgt.view(b, -1)
-#         tgt = self.projection(tgt.unsqueeze(-1))
-        
-#         return tgt.squeeze(), mu, log_var 
-
-# class SiT_BGT(nn.Module):
-#     def __init__(self, 
-#                  dim_model, 
-#                  encoder_depth, 
-#                  nhead, 
-#                  decoder_input_dim, 
-#                  decoder_depth, 
-#                  latent_length=102, 
-#                  num_channels=15, 
-#                  num_patches=320, 
-#                  num_verteces=153,
-#                  dropout=0.1):
-#         super(SiT_BGT, self).__init__()
-
-#         self.dim_model = dim_model
-#         self.input_dim = decoder_input_dim
-#         self.latent_length = latent_length
-#         self.device = "cpu"
-
-#         self.flatten_to_high_dim = nn.Conv1d(in_channels=decoder_input_dim, out_channels=latent_length*dim_model, kernel_size=1, groups=latent_length)
-#         # self.positional_encoding = PositionalEncoding(d_model=dim_model, seq_len=latent_length, dropout=dropout)
-
-#         self.encoder = EncoderSiT(dim=dim_model, 
-#                                   depth=encoder_depth, 
-#                                   heads=nhead, 
-#                                   num_channels=num_channels,  
-#                                   num_patches=num_patches, 
-#                                   num_vertices=num_verteces, 
-#                                   dropout=dropout,
-#                                   output_length=latent_length,
-#                                   emb_dropout=0.1)
-        
-#         # self.fc_mu = nn.Linear(dim_model * latent_length, VAE_latent_dim)
-#         # self.fc_var = nn.Linear(dim_model * latent_length, VAE_latent_dim)
-
-#         # self.vae_latent_to_encoder_out = nn.Linear(VAE_latent_dim, dim_model * latent_length)
-        
-#         decoder_dim_feedforward = 4 * decoder_input_dim
-#         self.decoder_layers = nn.ModuleList([TransformerDecoderBlock(input_dim=decoder_input_dim, d_model=dim_model, nhead=nhead, dim_feedforward=decoder_dim_feedforward) for _ in range(decoder_depth)])
-
-#         self.projection = nn.Conv1d(in_channels=latent_length*dim_model, out_channels=decoder_input_dim, kernel_size=1, groups=latent_length)
-
-#     def _reset_parameters(self):
-#         for p in self.parameters():
-#             if p.dim() > 1:
-#                 nn.init.xavier_uniform_(p)
-
-
-#     def encode(self, src):
-#         x, latent = self.encoder(src)
-#         x = x.view(x.size()[0], -1) # reshape to [b x model_dim * latent_length]
-
-#         return [x, latent]
-    
-#     def decode(self, tgt, encoder_out, tgt_mask):    
-#         b, _ = tgt.size()
-        
-#         # Project to high-dimensional space
-#         tgt = self.flatten_to_high_dim(tgt.unsqueeze(-1))
-#         tgt = tgt.view(b, -1, self.dim_model)
-
-#         # Reparameterization trick to sample from latent space
-#         x = encoder_out[0]
-#         latent = encoder_out[1]
-
-#         # vae_in_encoder_space = self.vae_latent_to_encoder_out(z)
-#         encoder_space = x.view(b, self.latent_length, self.dim_model)
-
-#         for layer in self.decoder_layers:
-#             tgt, masked_attn_weights, cross_attn_weights = layer(tgt=tgt, memory=encoder_space, tgt_mask=tgt_mask)
-
-#         tgt = tgt.view(b, -1)
-#         tgt = self.projection(tgt.unsqueeze(-1))
-
-#         return tgt #,latent
-
-
-#     def forward(self, src, tgt, tgt_mask, dropout=0.1):
-#         b, _ = tgt.size()
-
-#         # Project to high-dimensional space
-#         tgt = self.flatten_to_high_dim(tgt.unsqueeze(-1))
-#         tgt = tgt.view(b, -1, self.dim_model)
-        
-#         # encoder_space = self.encode(src)
-#         # latent = encoder_space
-#         # Reparameterization trick to sample from latent space
-#         # mu = encoder_out[0]
-#         # log_var = encoder_out[1]
-#         # std = torch.exp(0.5 * log_var)
-#         # epsilon = torch.randn_like(std)
-#         # z = mu + (std * epsilon)
-
-#         encoder_out = self.encode(src)
-#         # Reparameterization trick to sample from latent space
-#         x = encoder_out[0]
-#         latent = encoder_out[1] # latent is still extracted cause not like VAE, but still needed for Kraken losses
-
-#         # vae_in_encoder_space = self.vae_latent_to_encoder_out(z) # vae needs this to go from bottle neck to latent*dim_model but here, because not a VAE its already that size so skip
-#         encoder_space = x.view(b, self.latent_length, self.dim_model)
-
-
-#         for layer in self.decoder_layers:
-#             tgt, masked_attn_weights, cross_attn_weights = layer(tgt=tgt, memory=encoder_space, tgt_mask=tgt_mask)
-        
-#         tgt = tgt.view(b, -1)
-#         tgt = self.projection(tgt.unsqueeze(-1))
-        
-#         return tgt.squeeze(), latent
-
-class SiT_BGT_VAE(nn.Module):
-    def __init__(self, 
-                 dim_model, 
-                 encoder_depth, 
-                 nhead, 
-                 decoder_input_dim, 
-                 decoder_depth, 
-                 VAE_latent_dim=10000, 
-                 latent_length=102, 
-                 num_channels=15, 
-                 num_patches=320, 
-                 num_verteces=153,
-                 dropout=0.1):
-        super(SiT_BGT_VAE, self).__init__()
-
-        self.dim_model = dim_model
-        self.input_dim = decoder_input_dim
-        self.latent_length = latent_length
-
-        self.flatten_to_high_dim = nn.Linear(50, self.dim_model)
-        #self.flatten_to_high_dim = nn.Conv1d(in_channels=decoder_input_dim, out_channels=latent_length*dim_model, kernel_size=1, groups=latent_length)
-        # self.positional_encoding = PositionalEncoding(d_model=dim_model, seq_len=latent_length, dropout=dropout)
-
-        self.encoder = EncoderSiT(dim=dim_model, 
-                                  depth=encoder_depth, 
-                                  heads=nhead, 
-                                  num_channels=num_channels,  
-                                  num_patches=num_patches, 
-                                  num_vertices=num_verteces, 
-                                  dropout=dropout,
-                                  output_length=latent_length,
-                                  emb_dropout=0.1)
-        
-        self.fc_mu = nn.Linear(dim_model * latent_length, VAE_latent_dim)
-        self.fc_var = nn.Linear(dim_model * latent_length, VAE_latent_dim)
-
-        self.vae_latent_to_encoder_out = nn.Linear(VAE_latent_dim, dim_model * latent_length)
-        
-        decoder_dim_feedforward = 4 * decoder_input_dim
-        self.decoder_layers = nn.ModuleList([TransformerDecoderBlock(input_dim=decoder_input_dim, d_model=dim_model, nhead=nhead, dim_feedforward=decoder_dim_feedforward) for _ in range(decoder_depth)])
-
-        self.projection_block = nn.Sequential(
-            nn.LayerNorm(self.dim_model),
-            nn.Linear(self.dim_model, 50)  # Predict next 50 values at each step
-        )
-
-    def _reset_parameters(self):
-        for p in self.parameters():
-            if p.dim() > 1:
-                nn.init.xavier_uniform_(p)
-
-
-    def encode(self, src):
-        x, latent = self.encoder(src)
-        x = x.view(x.size()[0], -1) # reshape to [b x model_dim * latent_length]
-
-        mu = self.fc_mu(x)
-        log_var = self.fc_var(x)
-
-        return [x, mu, log_var]
-
-    def autoregressive_decode(self, encoder_out, start_tokens, total_len=5000, block_size=50, teacher=None, teacher_forcing_ratio=1.0):
-        b = start_tokens.shape[0]
-        device = start_tokens.device
-        assert total_len % block_size == 0, "total_len must be divisible by block_size"
-
-        num_blocks = total_len // block_size
-        decoder_input = start_tokens.unsqueeze(1) #decoder_input: stores the running sequence of previously generated blocks; shape starts as (B, 1, 50) and grows to (B, 2, 50), ..., (B, 100, 50)
-
-        outputs = []
-
-        # VAE sampling
-        mu, log_var = encoder_out[1], encoder_out[2]
-        std = torch.exp(0.5 * log_var)
-        z = mu + std * torch.randn_like(std)
-        # print(f"ecncoder shape: {z.shape}")
-        memory = self.vae_latent_to_encoder_out(z).view(b, self.latent_length, self.dim_model)
-
-        for i in range(1, num_blocks):
-            # USE BELOW IF: only using previous block to predict next
-            # last_block = decoder_input[:, -1, :]  # (B, 50)
-            # tgt = self.flatten_to_high_dim(last_block).unsqueeze(1)  # (B, 1, dim_model)
-
-            # for layer in self.decoder_layers:
-            #     tgt, _, _ = layer(tgt=tgt, memory=memory)
-
-            #  USE BELOW IF: using ALL previous blocks to predict next
-            flat_input = decoder_input.view(b, -1, 50)  # (B, i, 50) where i is the number of blocks generated
-            tgt = self.flatten_to_high_dim(flat_input)  # (B, i, dim_model) **this is the projection from 50-dim to model dim
-
-            tgt_len = tgt.size(1)
-            tgt_mask = torch.triu(torch.ones(tgt_len, tgt_len, device=device), diagonal=1).bool()  # (i, i) causal mask
-            for layer in self.decoder_layers:
-                tgt, _, _ = layer(tgt=tgt, memory=memory, tgt_mask=tgt_mask) # (B, i, dim_model) output
-
-            last_hidden = tgt[:, -1, :]  # (B, dim_model) -> utilizes the last-generated block (now attention aware) to generate next 50
-            next_block = self.projection_block(last_hidden)  # (B, 50)
-            outputs.append(next_block)
-
-            # Probabilistic teacher forcing
-            if teacher is not None and i < teacher.shape[1] and torch.rand(1).item() < teacher_forcing_ratio:
-                next_input = teacher[:, i, :]  # (B, 50)
-            else:
-                next_input = next_block
-
-            decoder_input = torch.cat([decoder_input, next_input.unsqueeze(1)], dim=1) # appending next block to decoder input
-
-        return torch.cat(outputs, dim=1)  # (B, 4950)
-
-    def forward(self, src, full_target=None, teacher_forcing_ratio=1.0):
-        encoder_out = self.encode(src)
-
-        # Split full_target into blocks of 50
-        if full_target is not None:
-            blocks = full_target.view(full_target.shape[0], -1, 50)  # (B, 100, 50)
-            start_tokens = blocks[:, 0, :]  # first block is the 50 start tokens
-            targets = blocks[:, 1:, :]  # the remaining 99 blocks to be predicted, so using first 50 to prefict all 4950
-        else:
-            start_tokens = torch.ones(src.size(0), 50, device=src.device)
-            targets = None
-
-        predictions = self.autoregressive_decode(
-            encoder_out,
-            start_tokens=start_tokens,
-            total_len=5000,
-            block_size=50,
-            teacher=targets,
-            teacher_forcing_ratio=teacher_forcing_ratio
-        )
-
-        return predictions, encoder_out[1], encoder_out[2]
-    
-class SiT_BGT(nn.Module):
-    def __init__(self, 
-                 dim_model, 
-                 encoder_depth, 
-                 nhead, 
-                 decoder_input_dim, 
-                 decoder_depth, 
-                #  VAE_latent_dim=10000, 
-                 latent_length=102, 
-                 num_channels=15, 
-                 num_patches=320, 
-                 num_verteces=153,
-                 dropout=0.1):
-        super(SiT_BGT, self).__init__()
-
-        self.dim_model = dim_model
-        self.input_dim = decoder_input_dim
-        self.latent_length = latent_length
-
-        self.flatten_to_high_dim = nn.Linear(50, self.dim_model)
-        #self.flatten_to_high_dim = nn.Conv1d(in_channels=decoder_input_dim, out_channels=latent_length*dim_model, kernel_size=1, groups=latent_length)
-        # self.positional_encoding = PositionalEncoding(d_model=dim_model, seq_len=latent_length, dropout=dropout)
-
-        self.encoder = EncoderSiT(dim=dim_model, 
-                                  depth=encoder_depth, 
-                                  heads=nhead, 
-                                  num_channels=num_channels,  
-                                  num_patches=num_patches, 
-                                  num_vertices=num_verteces, 
-                                  dropout=dropout,
-                                  output_length=latent_length,
-                                  emb_dropout=0.1)
-        
-        # self.fc_mu = nn.Linear(dim_model * latent_length, VAE_latent_dim)
-        # self.fc_var = nn.Linear(dim_model * latent_length, VAE_latent_dim)
-
-        # self.vae_latent_to_encoder_out = nn.Linear(VAE_latent_dim, dim_model * latent_length)
-        self.from_enc_latent_to_memory = nn.Identity() # encoder latent is our latent sapce, in VAE we go from VAE_latent_dim-->dim_model * latent_length, but latent is already that size
-        decoder_dim_feedforward = 4 * decoder_input_dim
-        self.decoder_layers = nn.ModuleList([TransformerDecoderBlock(input_dim=decoder_input_dim, d_model=dim_model, nhead=nhead, dim_feedforward=decoder_dim_feedforward) for _ in range(decoder_depth)])
-
-        self.projection_block = nn.Sequential(
-            nn.LayerNorm(self.dim_model),
-            nn.Linear(self.dim_model, 50)  # Predict next 50 values at each step
-        )
-
-    def _reset_parameters(self):
-        for p in self.parameters():
-            if p.dim() > 1:
-                nn.init.xavier_uniform_(p)
-
-
-    def encode(self, src):
-        x, latent = self.encoder(src)
-        x = x.view(x.size()[0], -1) # reshape to [b x model_dim * latent_length]
-
-        # mu = self.fc_mu(x)
-        # log_var = self.fc_var(x)
-
-        return [x, latent]
-
-    def autoregressive_decode(self, encoder_out, start_tokens, total_len=5000, block_size=50, teacher=None, teacher_forcing_ratio=1.0):
-        b = start_tokens.shape[0]
-        device = start_tokens.device
-        assert total_len % block_size == 0, "total_len must be divisible by block_size"
-
-        num_blocks = total_len // block_size
-        decoder_input = start_tokens.unsqueeze(1) #decoder_input: stores the running sequence of previously generated blocks; shape starts as (B, 1, 50) and grows to (B, 2, 50), ..., (B, 100, 50)
-
-        outputs = []
-
-        # VAE sampling
-        # mu, log_var = encoder_out[1], encoder_out[2]
-        # std = torch.exp(0.5 * log_var)
-        # z = mu + std * torch.randn_like(std)
-        # memory = self.vae_latent_to_encoder_out(z).view(b, self.latent_length, self.dim_model)
-
-        # latent space becomes memory
-        encoder_latent = encoder_out[0]
-        # print(f"ecncoder shape: {encoder_latent.shape}")
-        memory = self.from_enc_latent_to_memory(encoder_out[0]).view(b, self.latent_length, self.dim_model)
-        for i in range(1, num_blocks):
-            # USE BELOW IF: only using previous block to predict next
-            # last_block = decoder_input[:, -1, :]  # (B, 50)
-            # tgt = self.flatten_to_high_dim(last_block).unsqueeze(1)  # (B, 1, dim_model)
-
-            # for layer in self.decoder_layers:
-            #     tgt, _, _ = layer(tgt=tgt, memory=memory)
-
-            #  USE BELOW IF: using ALL previous blocks to predict next
-            flat_input = decoder_input.view(b, -1, 50)  # (B, i, 50) where i is the number of blocks generated
-            tgt = self.flatten_to_high_dim(flat_input)  # (B, i, dim_model) **this is the projection from 50-dim to model dim
-
-            tgt_len = tgt.size(1)
-            tgt_mask = torch.triu(torch.ones(tgt_len, tgt_len, device=device), diagonal=1).bool()  # (i, i) causal mask
-            for layer in self.decoder_layers:
-                tgt, _, _ = layer(tgt=tgt, memory=memory, tgt_mask=tgt_mask) # (B, i, dim_model) output
-
-            last_hidden = tgt[:, -1, :]  # (B, dim_model) -> utilizes the last-generated block (now attention aware) to generate next 50
-            next_block = self.projection_block(last_hidden)  # (B, 50)
-            outputs.append(next_block)
-
-            # Probabilistic teacher forcing
-            if teacher is not None and i < teacher.shape[1] and torch.rand(1).item() < teacher_forcing_ratio:
-                next_input = teacher[:, i, :]  # (B, 50)
-            else:
-                next_input = next_block
-
-            decoder_input = torch.cat([decoder_input, next_input.unsqueeze(1)], dim=1) # appending next block to decoder input
-
-        return torch.cat(outputs, dim=1)  # (B, 4950)
-
-    def forward(self, src, full_target=None, teacher_forcing_ratio=1.0):
-        encoder_out = self.encode(src)
-
-        # Split full_target into blocks of 50
-        if full_target is not None:
-            blocks = full_target.view(full_target.shape[0], -1, 50)  # (B, 100, 50)
-            start_tokens = blocks[:, 0, :]  # first block is the 50 start tokens
-            targets = blocks[:, 1:, :]  # the remaining 99 blocks to be predicted, so using first 50 to prefict all 4950
-        else:
-            start_tokens = torch.ones(src.size(0), 50, device=src.device)
-            targets = None
-
-        predictions = self.autoregressive_decode(
-            encoder_out,
-            start_tokens=start_tokens,
-            total_len=5000,
-            block_size=50,
-            teacher=targets,
-            teacher_forcing_ratio=teacher_forcing_ratio
-        )
-
-        return predictions, encoder_out[1]#, encoder_out[2]
+#         std = torch.exp(0.5 * log_var) # make into std
+
+#         epsilon = torch.randn(self.latent_samples, b, self.VAE_latent_dim) #torch.randn_like(mu) # think its supposed to be mu
+#         z_samples = mu.unsqueeze(0) + (std.unsqueeze(0) * epsilon) # reparam trick
+#         z_average = z_samples.mean(dim=0)
+#         latent_step_identity = z_average
+#         # last step, FFN
+#         final_x = self.mlp_head(latent_step_identity)
+#         return final_x, mu, log_var
