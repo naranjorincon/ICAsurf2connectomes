@@ -1,49 +1,46 @@
 #!/bin/bash
-#SBATCH -J "ExtractABCD_Timeseries"
+#SBATCH -J ExtractABCD_Timeseries
 #SBATCH -o /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/batch/ExtractABCD_Timeseries_Schaefer200.out%j
 #SBATCH -e /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/batch/ExtractABCD_Timeseries_Schaefer200.err%j
 #SBATCH --partition=tier2_cpu 
 #SBATCH --account=janine_bijsterbosch
-#SBATCH --mem-per-cpu 4G 
-#SBATCH --cpus-per-task 6
 #SBATCH -t 0-12:00:00 
 
 module load workbench
 
 # need subj ID file
-file="/ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/generate_ICA/ABCD_ICA_subjids.txt"
+subjID_fpath="/ceph/chpc/shared/janine_bijsterbosch_group/WAPIAW_2026/qc/5min_pconn_subjects.txt"
+# subjID_fpath="/ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/wapiaw26/subject_list_only5.txt"
 
 # Schaefer100
-parcel_file="/ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/ABCD_NetMats/schaefer100/Schaefer2018_100Parcels_17Networks_order.dlabel.nii"
-dir_path="/ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/ABCD_NetMats/schaefer100/timeseries"
-
-# Schaefer200
-#parcel_file="/ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/ABCD_NetMats/schaefer200/Schaefer2018_200Parcels_17Networks_order.dlabel.nii"
-#dir_path="/ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/ABCD_NetMats/schaefer200/timeseries"
+# parcel_file="/ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/ABCD_NetMats/schaefer100/Schaefer2018_100Parcels_17Networks_order.dlabel.nii"
+# dir_path="/ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/ABCD_NetMats/new_ABCD_version/schaefer_d100/untranspose"
 
 # Schaefer300
-#parcel_file="/ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/ABCD_NetMats/schaefer300/Schaefer2018_300Parcels_17Networks_order.dlabel.nii"
-#dir_path="/ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/ABCD_NetMats/schaefer300/timeseries"
+# parcel_file="/ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/ABCD_NetMats/schaefer200/Schaefer2018_200Parcels_17Networks_order.dlabel.nii"
+# dir_path="/ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/ABCD_NetMats/new_ABCD_version/schaefer_d300/untranspose"
 
 # Glasser360
-#parcel_file="/ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/ABCD_NetMats/glasser360/Q1-Q6_RelatedParcellation210.CorticalAreas_dil_Colors_210P_Orig.32k_fs_LR.dlabel.nii"
-#dir_path="/ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/ABCD_NetMats/glasser360/timeseries"
+parcel_file="/ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/ABCD_NetMats/glasser360/Q1-Q6_RelatedParcellation210.CorticalAreas_dil_Colors_210P_Orig.32k_fs_LR.dlabel.nii"
+dir_path="/ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/ABCD_NetMats/new_ABCD_version/glasser_d360/untranspose"
 
-while IFS= read -r subject_id; 
+# loop
+mkdir -p ${dir_path}
+subjID_list=$(cat ${subjID_fpath})
+for subjID in ${subjID_list};
 do
-    subject_id=$(echo "$subject_id" | tr -d '\r')
-    echo "Extracting Timeseries For: $subject_id"
+    echo "Extracting Timeseries For: ${subjID}"
 
     wb_command -cifti-parcellate \
-        /ceph/chpc/rcif_datasets/abcd/abcd_collection3165/derivatives/abcd-hcp-pipeline/sub-${subject_id}/ses-baselineYear1Arm1/files/MNINonLinear/Results/task-rest_DCANBOLDProc_v4.0.0_Atlas.dtseries.nii \
+        /ceph/chpc/shared/janine_bijsterbosch_group/WAPIAW_2026/cortex_only_data/ses-all/4mm_smooth/${subjID}_cortex_only_demean_smooth_4mm.dtseries.nii \
         ${parcel_file} \
         COLUMN \
-        ${dir_path}/${subject_id}.ptseries.nii
+        ${dir_path}/${subjID}.ptseries.nii
 
     wb_command -cifti-convert -to-text \
-        ${dir_path}/${subject_id}.ptseries.nii \
-        ${dir_path}/untranspose_${subject_id}.txt
+        ${dir_path}/${subjID}.ptseries.nii \
+        ${dir_path}/untranspose_${subjID}.txt
 
-done < "${file}"
+done #< "${subjID_fpath}"
 
 chmod 771 ${dir_path}/*
