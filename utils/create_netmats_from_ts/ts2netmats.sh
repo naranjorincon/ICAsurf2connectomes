@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH -J ts2netmats
-#SBATCH -o /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/ABCD_NetMats/logs/ts2netmats.out%j
-#SBATCH -e /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/ABCD_NetMats/logs/ts2netmats.err%j
+#SBATCH -o /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/batch/ts2netmats.out%j
+#SBATCH -e /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/batch/ts2netmats.err%j
 #SBATCH --partition=tier2_cpu 
 #SBATCH --account=janine_bijsterbosch 
 #SBATCH -t 0-24:00:00 
@@ -12,7 +12,8 @@ script_path="/ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/N
 # subjects_list_path="/ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/wapiaw26/subject_list_only5.txt"
 subjects_list_path="/ceph/chpc/shared/janine_bijsterbosch_group/WAPIAW_2026/qc/5min_pconn_subjects.txt"
 
-parcellation_type="schaefer_d100"
+parcellation_type="glasser_d360" #schaefer_d100, schaefer_d300, glasser_d360
+
 dir_path="/ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/ABCD_NetMats/new_ABCD_version/${parcellation_type}/transpose"
 Fnetmats_output="/ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/ABCD_NetMats/new_ABCD_version/${parcellation_type}/netmats"
 Pnetmats_output="/ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/ABCD_NetMats/new_ABCD_version/${parcellation_type}/partial_netmats"
