@@ -4,15 +4,17 @@
 #SBATCH -e /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/batch/TransposeABCD_tseries.err%j
 #SBATCH --partition=tier2_cpu 
 #SBATCH --account=janine_bijsterbosch
-#SBATCH -t 0-23:00:00 
+#SBATCH -t 0-05:00:00 
 
 source activate neurotranslate
+
+parcellation_type="glasser_d360" #schaefer_d100, schaefer_d300, glasser_d360
 
 script_path="/ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/ABCD_NetMats/utils/transpose_ptseries.py"
 # subjects_list_path="/ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/wapiaw26/subject_list_only5.txt"
 subjects_list_path="/ceph/chpc/shared/janine_bijsterbosch_group/WAPIAW_2026/qc/5min_pconn_subjects.txt"
-untranspose_ts_path="/ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/ABCD_NetMats/new_ABCD_version/schaefer_d100/untranspose"
-save_path="/ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/ABCD_NetMats/new_ABCD_version/schaefer_d100/transpose"
+untranspose_ts_path="/ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/ABCD_NetMats/new_ABCD_version/${parcellation_type}/untranspose"
+save_path="/ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/ABCD_NetMats/new_ABCD_version/${parcellation_type}/transpose"
 mkdir -p ${save_path}
 
 python ${script_path} ${subjects_list_path} ${untranspose_ts_path} ${save_path}
