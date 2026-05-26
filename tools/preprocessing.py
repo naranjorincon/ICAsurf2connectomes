@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # @Author: Samuel Naranjo Rincon
-# @Last Modified time: 2024-06-13 14:32pm Changed to be flexible to different data size, namely if wanting to prep just one hemisphere
+# @Last Modified time: 2026-04-08 
 
 '''
 This file is used to preprocess data surface metrics into triangular patches
@@ -21,8 +21,7 @@ sys.path.append('./')
 sys.path.append('../../')
 # from utils.utils import write_to_file
 
-def main(config):
-
+def main(config,options):
     def write_to_file(content):
         # task = config['data']['task']
         with open(f"/ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/batch/SiT_prep.print", 'a') as file:
@@ -39,7 +38,7 @@ def main(config):
 
     # configuration = config['data']['configuration']  # template #template #native
     num_channels = config['data']['channels'] # 4
-    split = config['data']['split'] # train #validation # or test
+    split = options.type #config['data']['split'] # train #validation # or test
     translation = config['data']['translation'] # 
     output_folder = config['output']['folder'] # ../data/{surf2mat}/{template}/
     output_folder_netmat = config['output']['output_folder_netmat']
@@ -549,18 +548,20 @@ if __name__ == '__main__':
 
     # Set up argument parser
         
-    parser = argparse.ArgumentParser(description='preprocessing ICAd50 data for patching')
+    parser = argparse.ArgumentParser(description='preprocessing cortical sheet maps for patching.')
     
-    parser.add_argument(
-                        'config',
+    parser.add_argument('--config_path',
                         type=str,
                         default='./config/hparams_surf2mat.yml',
-                        help='path where the data is stored')
+                        help='Path to YAML file containing parameter information.')
+    parser.add_argument('--type',
+                        default='train',
+                        help='Preprocessing type: train, validation, test.')
     
-    args = parser.parse_args()
+    options = parser.parse_args()
 
-    with open(args.config) as f:
+    with open(options.config_path) as f:
         config = yaml.safe_load(f)
 
     # Call training
-    main(config)
+    main(config, options)

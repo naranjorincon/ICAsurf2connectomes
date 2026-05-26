@@ -85,7 +85,7 @@ def make_nemat_allsubj_triangle_only(data, num_nodes, upper_trinagle):
         out[i, :, :] = make_netmat_into_trinagle(data[i], num_nodes, upper_trinagle=upper_trinagle)
     return out
 
-def mat2vector(mat, diagonal_flag=0):
+def mat2vector(mat, diagonal_flag: bool=False):
     '''
     Right now, expects input bxpxp cause channel gets squeezed in curr verison of diff train function below
     '''
@@ -266,7 +266,7 @@ def fcn_prep_data_get_loaders_ICAren(train_surface, validation_surface, b_sz=32,
     del normalized_train_surface, normalized_train_surface_reshaped, normalized_val_surface, normalized_val_surface_reshaped
     return train_loader, val_loader, mean_train_surface
 
-def fcn_prep_data_get_loaders(train_netmat, train_surface, validation_netmat, validation_surface, parcellation_N, netmat_prep_choice=None, surf_prep_choice=None, b_sz=32, padding=50, encdec=True, write_fpath=''):
+def fcn_prep_data_get_loaders(train_netmat, train_surface, validation_netmat, validation_surface, parcellation_N, netmat_prep_choice=None, surf_prep_choice=None, b_sz=32, mvae=True, write_fpath=''):
     '''
     Preprocessing function that takes in netmat parcellation of size N and suface maps for some component, like ICA. For netmats, input data is a subx[(N*(N-1))/2] matrix, 
     so upper triangle elements. parcellation = 100, then N=4950 and so on. Provided a tranformation condition is given, norm or fisherZ, ir applies both or either. Then, makes full connectome
@@ -377,9 +377,9 @@ def fcn_prep_data_get_loaders(train_netmat, train_surface, validation_netmat, va
         tr_transformed_netmats = train_netmat
         val_transformed_netmats = validation_netmat
     
-    if encdec:
-        train_netmat_np = add_start_token_np(tr_transformed_netmats, n=padding) #make_nemat_allsubj(tr_transformed_netmats, parcellation_N) # turns vec into netmat for all subs, second variable is nodes in netmat
-        val_netmat_np = add_start_token_np(val_transformed_netmats, n=padding) #make_nemat_allsubj(val_transformed_netmats, parcellation_N)
+    if mvae:
+        train_netmat_np = make_nemat_allsubj(tr_transformed_netmats, parcellation_N) # turns vec into netmat for all subs, second variable is nodes in netmat
+        val_netmat_np = make_nemat_allsubj(val_transformed_netmats, parcellation_N)
     else:
         train_netmat_np = tr_transformed_netmats
         val_netmat_np = val_transformed_netmats
