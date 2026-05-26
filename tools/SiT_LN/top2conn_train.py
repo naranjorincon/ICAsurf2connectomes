@@ -670,4 +670,3 @@ if __name__ == "__main__":
 
     # Call training
     whole_model_arch(config)
-

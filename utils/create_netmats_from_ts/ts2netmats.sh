@@ -4,7 +4,8 @@
 #SBATCH -e /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/batch/ts2netmats.err%j
 #SBATCH --partition=tier2_cpu 
 #SBATCH --account=janine_bijsterbosch 
-#SBATCH -t 0-24:00:00 
+#SBATCH --mem=40GB #30GB is enough for schaefer100,300 but glasser needs more apprx: 40GB
+#SBATCH -t 0-04:00:00 
 
 module load fsl
 
@@ -23,6 +24,7 @@ mkdir -p ${Pnetmats_output}
 fslipython ${script_path} ${dir_path} ${Fnetmats_output} ${Pnetmats_output} ${subjects_list_path}
 
 chmod -R 771 /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/ABCD_NetMats/new_ABCD_version
+
 
 #Visualize some people to qa check that this went well
 source activate neurotranslate
