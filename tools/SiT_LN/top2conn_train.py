@@ -219,12 +219,10 @@ def whole_model_arch(config):
                     write_to_file(f'Loaded in TEST. They have shapes: {te_netmat_np.shape} & {te_surf_np.shape} respectively.', filepath=write_fpath)
         elif parcellation_corr_type == "partial":
             train_netmat_np = np.load(f"{data_root_path}/NeuroTranslate/brain_reps_datasets/{dataset_choice}/schaefer_mats/partialnetmat_d{from_parcellation}/train_netmat_clean.npy")
-            # train_netmat_np = train_netmat_np.T.to_numpy()
             train_surf_np = np.load(f"{data_root_path}/NeuroTranslate/brain_reps_datasets/{dataset_choice}/ICA_maps/ICAd15_ico0{icores}/{hemi_cond}_train_surf.npy")#[:, np.newaxis, channel_testing, :] 
             write_to_file(f'Loaded in TRAIN. They have shapes: {train_netmat_np.shape} & {train_surf_np.shape} respectively.', filepath=write_fpath)
 
             val_netmat_np = np.load(f"{data_root_path}/NeuroTranslate/brain_reps_datasets/{dataset_choice}/schaefer_mats/partialnetmat_d{from_parcellation}/val_netmat_clean.npy")
-            # val_netmat_np = val_netmat_np.T.to_numpy()
             val_surf_np = np.load(f"{data_root_path}/NeuroTranslate/brain_reps_datasets/{dataset_choice}/ICA_maps/ICAd15_ico0{icores}/{hemi_cond}_val_surf.npy")#[:, np.newaxis, channel_testing, :]
             write_to_file(f'Loaded in VALIDATION. They have shapes: {val_netmat_np.shape} & {val_surf_np.shape} respectively.', filepath=write_fpath)
 

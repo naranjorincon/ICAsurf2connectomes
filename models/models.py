@@ -611,6 +611,8 @@ class connectome_decoder_linear(nn.Module):
 
     def vector2mat(self, x:Tensor) -> Tensor:
         """
+        connectome reconstruction/translations are giving us just the vectorized upper triangle. So making it into a mat here.
+        This is just a tranformation, so not part of the re-weighting/learning process.
         """
         b = x.shape[0]
         device=x.device
@@ -627,13 +629,15 @@ class connectome_decoder_linear(nn.Module):
     
     def forward(self, z: Tensor) -> Tensor:
         output = self.mlp_head(z)
-        mat = self.vector2mat(output)
-        return mat
+        output = self.vector2mat(output)
+        return output
     
 def PoE(
         mu_list: list[Tensor],
         log_var_list: list[Tensor],
-        eps: float = 1e-8) -> tuple[Tensor, Tensor]:
+        eps: float = 1e-8,
+        LOG_VAR_MIN:float=-100,
+        LOG_VAR_MAX: float=100) -> tuple[Tensor, Tensor]:
     '''
     Given a list of mu_i and logvar_i, compute the product of these gaussians.
     The PoE of N Gaussians is itself a Gaussian:
@@ -657,8 +661,8 @@ def PoE(
     # Stack to (num_experts, batch, latent_dim) so for now should be (2,32,100) and 2==SiT+BNT
     mu_stack      = torch.stack(all_mu,      dim=0)
     log_var_stack = torch.stack(all_log_var, dim=0)
-    # clamping due to NaNs earlier (exploding/vanishing grads)
-    LOG_VAR_MIN,LOG_VAR_MAX = -10.0, 10.0
+    # clamping due to NaNs earlier 
+    # self.LOG_VAR_MIN, self.LOG_VAR_MAX = LOG_VAR_MIN, LOG_VAR_MAX
     log_var_stack = log_var_stack.clamp(LOG_VAR_MIN,LOG_VAR_MAX)
     # Precision = 1 / variance = exp(-log_var)
     precision_stack = torch.exp(-log_var_stack) + eps          # (E, B, D)
@@ -670,7 +674,7 @@ def PoE(
  
     return mu_joint, log_var_joint
 
-def reparameterise(mu: Tensor, log_var: Tensor) -> Tensor:
+def reparameterise(mu: Tensor, log_var: Tensor, LOG_VAR_MIN: float, LOG_VAR_MAX: float) -> Tensor:
     """
     z = mu + eps * std,  eps ~ N(0, I)
     Returns mu directly during eval (no stochasticity).
@@ -678,7 +682,7 @@ def reparameterise(mu: Tensor, log_var: Tensor) -> Tensor:
     if not torch.is_grad_enabled():          # inference / eval
         return mu
     #also help stabalize log_var herein, not just in PoE
-    LOG_VAR_MIN, LOG_VAR_MAX=-10.0,10.0
+    # LOG_VAR_MIN, LOG_VAR_MAX = self.LOG_VAR_MIN, self.LOG_VAR_MAX
     log_var = log_var.clamp(LOG_VAR_MIN, LOG_VAR_MAX)
     std = torch.exp(0.5 * log_var)
     eps = torch.randn_like(std)
@@ -721,7 +725,9 @@ class MVAE(nn.Module):
         encoders: list,
         decoders: list,
         latent_dim: int,
-        beta: float=1.0 #beta for VAE KL section so beta VAE
+        beta: float=1.0, #beta for VAE KL section so beta VAE
+        log_var_min: float=-100.0,
+        log_var_max: float=100.0
     ):
         
         super().__init__()
@@ -732,6 +738,7 @@ class MVAE(nn.Module):
         self.latent_dim   = latent_dim
         self.beta         = beta
         self.n_modalities = len(encoders)
+        self.LOG_VAR_MIN, self.LOG_VAR_MAX = log_var_min, log_var_max
 
     def encode(
             self,
@@ -754,8 +761,7 @@ class MVAE(nn.Module):
             
             mu_i, log_var_i = encoder(x)
             #clip immediately after encoding
-            LOG_VAR_MIN, LOG_VAR_MAX = -10.0,10.0
-            log_var_i = log_var_i.clamp(LOG_VAR_MIN, LOG_VAR_MAX)
+            log_var_i = log_var_i.clamp(self.LOG_VAR_MIN, self.LOG_VAR_MAX)
             mu_list.append(mu_i)
             log_var_list.append(log_var_i)
             modality_params.append((mu_i, log_var_i))
@@ -763,7 +769,7 @@ class MVAE(nn.Module):
         if len(mu_list) == 0:
             raise ValueError("No modalities passed. Neets at least one.")
         
-        mu_joint, log_var_joint = PoE(mu_list, log_var_list)
+        mu_joint, log_var_joint = PoE(mu_list, log_var_list, self.LOG_VAR_MIN, self.LOG_VAR_MAX)
         return mu_joint, log_var_joint, modality_params
         
     def decode(self, z:Tensor) -> list[Tensor]:
@@ -780,7 +786,7 @@ class MVAE(nn.Module):
         """
         # kl = -0.5 * (1 + log_var - mu.pow(2) - log_var.exp())
         # return kl.sum(dim=-1).mean()
-        LOG_VAR_MIN, LOG_VAR_MAX = -10.0,10.0
+        LOG_VAR_MIN, LOG_VAR_MAX = self.LOG_VAR_MIN, self.LOG_VAR_MAX
         KL_MAX_PER_DIM=100
         log_var = log_var.clamp(LOG_VAR_MIN, LOG_VAR_MAX)
         
@@ -793,40 +799,50 @@ class MVAE(nn.Module):
         kl_per_dim = kl_per_dim.clamp(max=KL_MAX_PER_DIM)
         return kl_per_dim.sum(dim=-1).mean() 
     
-    # def elbo(
-    #     self,
-    #     inputs: list[Optional[Tensor]],
-    #     recon_loss_fn,
-    #     mu: Tensor,
-    #     log_var: Tensor,
-    #     reconstructions: list[Tensor]
-    # ) -> tuple[Tensor, Tensor, Tensor]:
-    #     """
-    #     Compute the ELBO = reconstruction_loss + beta * KL.
+    def elbo(
+        self,
+        inputs: list[Optional[Tensor]],
+        # recon_loss_fn,
+        mu: Tensor,
+        log_var: Tensor,
+        reconstructions: list[Tensor],
+        recon_weights: Optional[list[float]] = None # suface maps and connectomes have different ranges of values so trunig to pass these seperately
+    ) -> tuple[Tensor, Tensor, Tensor]:
+        """
+        Compute the ELBO = reconstruction_loss + beta * KL. beta will be annealed
 
-    #     Args:
-    #         inputs:          original inputs (None for missing modalities)
-    #         recon_loss_fn:   callable(recon, target) → scalar loss per modality
-    #                         e.g. nn.MSELoss() or nn.BCEWithLogitsLoss()
-    #         mu, log_var:     joint posterior parameters
-    #         reconstructions: list of decoded tensors
+        Args:
+            inputs:          original inputs (None for missing modalities)
+            recon_loss_fn:   callable(recon, target) → scalar loss per modality
+                            e.g. nn.MSELoss() or nn.BCEWithLogitsLoss()
+            mu, log_var:     joint posterior parameters
+            reconstructions: list of decoded tensors
 
-    #     Returns:
-    #         total_loss, recon_loss, kl_loss  — all scalars
-    #     """
-    #     recon_loss = torch.tensor(0.0, device=mu.device)
-    #     n_present  = 0
+        Returns:
+            total_loss, recon_loss, kl_loss  — all scalars
+        """
 
-    #     for x, recon in zip(inputs, reconstructions):
-    #         if x is not None:
-    #             recon_loss = recon_loss + recon_loss_fn(recon, x)
-    #             n_present += 1
+        if recon_weights is None:
+            recon_weights = [1.0]*self.n_modalities # num of encoders [1.0 1.0] for SiT and BNT for exmaple
 
-    #     recon_loss = recon_loss / max(n_present, 1)   # average over present modalities
-    #     kl_loss    = self.compute_kl(mu, log_var)
-    #     total_loss = recon_loss + self.beta * kl_loss
+        recon_loss = torch.tensor(0.0, device=mu.device)
+        n_present  = 0
 
-    #     return total_loss, recon_loss, kl_loss
+        for x, recon, w in zip(inputs, reconstructions, recon_weights):
+            if x is None:
+                continue
+                # recon_loss = recon_loss + recon_loss_fn(recon, x)
+                # n_present += 1
+
+            mse = ((x - recon)**2).mean() #MSE with torch values across batch and features
+            recon_loss = recon_loss + w*mse # weights encoders differenly so trying to make it more fair for connectomes
+            n_present += 1 #num of encoders if any missing will ignore
+
+        recon_loss = recon_loss / max(n_present, 1)   # average over present modalities
+        kl_loss    = self.compute_kl(mu, log_var)
+        total_loss = recon_loss + self.beta * kl_loss
+
+        return total_loss, recon_loss, kl_loss
     
     def _reset_parameters(self):
         for p in self.parameters():
@@ -850,13 +866,12 @@ class MVAE(nn.Module):
             reconstructions — list of decoded tensors (one per modality)
             modality_params — per-modality (mu_i, log_var_i) or None if missing
         """
-
         mu, log_var, modality_params = self.encode(inputs)
-        z = reparameterise(mu, log_var)
+        z = reparameterise(mu, log_var, self.LOG_VAR_MIN, self.LOG_VAR_MAX)
         reconstructions = self.decode(z)
 
-        kl_div = self.compute_kl(mu, log_var)
-        kl_loss = self.beta * kl_div
+        # kl_div = self.compute_kl(mu, log_var)
+        # kl_loss = self.beta * kl_div
 
         return {
             "z":               z,
@@ -864,5 +879,11 @@ class MVAE(nn.Module):
             "log_var":         log_var,
             "reconstructions": reconstructions,
             "modality_params": modality_params,
-            "kl_loss": kl_loss,
+            # "kl_loss": kl_loss,
         }
+    
+        @torch.no_grad() # when calling no_grad yes? so at evaluation step/test step!!
+        def sample(self, n_samples:int, device: torch.device) -> list[Tensor]:
+            """Sample from standard gaussian space converged to, ideally. N(0,I) for decoding."""
+            z = torch.randn(n_samples, self.latent_dim, device=device)
+            return self.decode(z)

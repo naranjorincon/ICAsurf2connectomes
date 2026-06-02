@@ -244,9 +244,6 @@ def train_krakenonly(model, krak_mse_weight, krak_latent_weight, krak_corrI_weig
 
         optimizer.step()
 
-        # targets_.append(demean_targets.cpu().numpy())
-        # preds_.append(demean_pred.cpu().detach().numpy())
-
     across_sub_mae_mean = np.mean(tr_mae_subs) # across all elements, so no axis ==> mean of flatten mat->vector, so across all subs and channels and patches and verteces
     across_sub_mae_std = np.std(tr_mae_subs)
     across_sub_mse_mean = np.mean(tr_mse_subs)
@@ -271,11 +268,12 @@ def train_krakenonly(model, krak_mse_weight, krak_latent_weight, krak_corrI_weig
     
     return tr_epoch_loss, across_sub_mae_mean, across_sub_mae_std, across_sub_mse_mean, across_sub_mse_std, across_sub_corr_demean, across_sub_corr_demean_std, across_sub_corr_org, across_sub_corr_org_std
 
-def train_MSE(model, train_loader, mean_train_label, device, optimizer, VAE_flag: bool=False, netmat_prep_choice: str="demean"):
+def train_mvae(model, train_loader, mean_train_label, device, optimizer, netmat_prep_choice: str="demean", recon_weights: list=[1.0, 1.0]):
     '''
-    Train function only using MSE and Skewloss (NO KRAKEN) to see effects of skewloss on original basic loss optimization. Function inputs are not relevant and not used for kraken, but for
-    simplicity kept as function inputs. That way, all train scripts can stay the same and I just have to specify which train function is being used.
+    Train function only using MSE but for multimodal VAEs. Ideally, should have a main train function that can
+    adapt to architecture. For now, seperating them.
     '''
+    optimizer.zero_grad() #inits grads as None instead of 0s with certain mem advantages. Kinda part of the culture.
     model.train()
 
     tr_mae_subs = []
@@ -286,48 +284,51 @@ def train_MSE(model, train_loader, mean_train_label, device, optimizer, VAE_flag
     tr_epoch_loss = 0
     tr_mae_subs_surf=[]
     tr_mse_subs_surf=[]
+
+
     for i, data in enumerate(train_loader): # for loop that goes over each batch in training loop
         surface_inputs, connectome_inputs = data[0].to(device), data[1].to(device) # inputs = graph, output=tr_demean_mesh ico-n
-        optimizer.zero_grad(set_to_none=True) # True by default anyway
+        # list each element seperate and for each encoder/expert seperately
+        outputs = model([surface_inputs, connectome_inputs])
 
-        if VAE_flag:
-            outputs = model([surface_inputs, connectome_inputs])
-        else:
-            pred, latent = model(surface_inputs)
-        
-        n_present=0
-        Lr_mse = torch.tensor(0.0, device=device)
-        for x, recon in zip([surface_inputs, connectome_inputs], outputs["reconstructions"]): #input and recon, so x and x_hat
-            if x is not None:
-                Lr_mse = Lr_mse + torch.nn.MSELoss()(x, recon) #((x - recon)**2).mean() #torch.nn.MSELoss()(x, recon)
-                n_present += 1
-            
-        recon_loss = Lr_mse / max(n_present, 1) # average over present modalities
-        # print(f"\n\n Present so {Lr_mse} {max(n_present, 1)} {klloss}\n\n")
-        total_loss = recon_loss + outputs["kl_loss"]
-        
-        # seperate reconstructions seperately
-        surface_recon, netmat_recon = outputs["reconstructions"][0], outputs["reconstructions"][1]
+        # calc loss, need to vectorize connectome as input and output here, need to keep as tensor, though.
+        connectome_inputs_vectorized = torch.tril(connectome_inputs, diagonal=-1)
+        total_loss, recon_loss, kl_loss = model.elbo(
+            [surface_inputs, connectome_inputs_vectorized],  #mave inputs
+            [outputs["reconstructions"][0], ],
+            outputs["mu"],
+            outputs["log_var"],
+            recon_weights=recon_weights #how to weight the encoders for total MSE loss
+        )
 
+        # #check for possible instability
+        # if not torch.isfinite(total_loss):
+        #     # warnings.warn(f"Skipping batch {i} due to non-finite loss. resettign to none.")
+        #     optimizer.zero_grad()
+        #     total_loss = None
+        
+        # continue the trains tep
+        total_loss.backward()
+        optimizer.step()
+
+        #outputs of current epoch for monitoring training
+        surface_recon, connectome_recon = outputs["reconstructions"][0], outputs["reconstructions"][1]
+        
         # netmat performance
-        pred = netmat_recon.detach().numpy()
-        targets = connectome_inputs.detach().numpy()
-
-        batch_n, parcels,_ = targets.shape
-        tri_indices = np.tril_indices(parcels, k=-1)
-        pred = pred[:, tri_indices[0], tri_indices[1]] #rows,cols
-        targets = targets[:, tri_indices[0], tri_indices[1]] #rows,cols
+        batch_n = connectome_recon.shape[0] #same batch size for both
+        connectome_inputs = connectome_inputs.detach().numpy() #also symmetric matrix
+        connectome_recon = connectome_recon.detach().numpy() #should be a symmetric matrix NxN
 
         # #surface performance
-        pred_surf = surface_recon.detach().numpy()
-        targets_surf = surface_inputs.detach().numpy()
-
-        pred_surf = pred_surf.reshape(batch_n, surface_inputs.shape[1]*surface_inputs.shape[2]*surface_inputs.shape[3])
+        surface_inputs = surface_inputs.detach().numpy()
         targets_surf = targets_surf.reshape(batch_n, surface_inputs.shape[1]*surface_inputs.shape[2]*surface_inputs.shape[3])
 
-        del outputs, netmat_recon, connectome_inputs, surface_recon, surface_inputs
+        surface_recon = surface_recon.detach().numpy()
+        pred_surf = pred_surf.reshape(batch_n, surface_inputs.shape[1]*surface_inputs.shape[2]*surface_inputs.shape[3])
+        
+        del outputs#, netmat_recon, connectome_inputs, surface_recon, surface_inputs
 
-        # MAE and MSE metrics per training iteration/batch
+        # MAE and MSE metrics per training iteration/batch but seperated for encoders
         mae = np.mean( np.abs((targets - pred)), axis=0, keepdims=True) #LA.norm((targets - pred), ord=1, axis=0) #np.abs( (targets - pred) ) # |y - y_hat|
         tr_mae_subs.append(mae)
         mse = np.mean( (targets - pred)**2 , axis=0, keepdims=True) #(LA.norm((targets - pred), ord=2, axis=0)) ** 2 #needs to be **2 becasue norm-2 squareroots result. np.mean( (targets - pred)**2 ) #(y - y_hat)^2
@@ -342,24 +343,16 @@ def train_MSE(model, train_loader, mean_train_label, device, optimizer, VAE_flag
         if "demean" in netmat_prep_choice: 
             tr_corr_mat = np.corrcoef(targets, pred) #[subj*2 x subj*2] matrix where quadrant1 = target_target, quad2=target_pred, quad3=pred_target, quad4=pred_pred
             top_right_quad = tr_corr_mat[batch_n:,:batch_n] #big corr matrix only need topright or bottom left quadrants
-            # split_half_horizontal = np.split(tr_corr_demean, 2, axis = 0) # 0 is top rectangle, 1 is bottom rectangle
-            # top_right_quad = np.split(split_half_horizontal[0], 2, axis = 1)[1]
             tr_corr_subs_demean.append(np.diag(top_right_quad))
             tr_corr_mat = np.corrcoef((targets+mean_train_label), (pred+mean_train_label)) # going to be low-ish cause 256->mesh size sphere but curious
             top_right_quad = tr_corr_mat[batch_n:,:batch_n]
-            # split_half_horizontal = np.split(tr_corr_org, 2, axis = 0) # 0 is top rectangle, 1 is bottom rectangle
-            # top_right_quad = np.split(split_half_horizontal[0], 2, axis = 1)[1]
             tr_corr_subs_org.append(np.diag(top_right_quad))
         else: # if data was preped by demeaning, then for original need to readd mean
             tr_corr_mat = np.corrcoef((targets-mean_train_label), (pred-mean_train_label))
             top_right_quad = tr_corr_mat[batch_n:,:batch_n]
-            # split_half_horizontal = np.split(tr_corr_demean, 2, axis = 0) # 0 is top rectangle, 1 is bottom rectangle
-            # top_right_quad = np.split(split_half_horizontal[0], 2, axis = 1)[1]
             tr_corr_subs_demean.append(np.diag(top_right_quad))
             tr_corr_mat = np.corrcoef(targets, pred)# going to be low-ish cause 256->mesh size sphere but curious
             top_right_quad = tr_corr_mat[batch_n:,:batch_n]
-            # split_half_horizontal = np.split(tr_corr_org, 2, axis = 0) # 0 is top rectangle, 1 is bottom rectangle
-            # top_right_quad = np.split(split_half_horizontal[0], 2, axis = 1)[1]
             tr_corr_subs_org.append(np.diag(top_right_quad))
 
         tr_corr_mat = np.corrcoef(targets_surf, pred_surf)
@@ -368,14 +361,7 @@ def train_MSE(model, train_loader, mean_train_label, device, optimizer, VAE_flag
         
         del tr_corr_mat, top_right_quad #big matrix, remove here to not add more to mem usage/storage
 
-        # if VAE_flag:
-        #     # loss = ((Lr + (krak_latent_weight * Lz) + weight_lrho*L_rho + kld_loss)) # loss uses demean so add that
-        #     loss = Lr_mse + kld_loss
-        #     # torch.nn.utils.clip_grad_norm_(model.parameters(), 4.0)
-        # else:
-        #     loss = Lr_mse
-
-        optimizer.zero_grad()
+        # optimizer.zero_grad()
         total_loss.backward()
         tr_epoch_loss += total_loss.item()
 

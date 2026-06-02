@@ -22,7 +22,7 @@
 # 3. https://www.humanconnectome.org/software/workbench-command/-metric-resample
 #
 
-module load workbench  # /1.5.0, we don't have 1.5.0 anymore I think we now have the more updated one. Lets try anduse the updated one to see if it still works.
+module load workbench  # /1.5.0, we don't have 1.5.0 anymore I think we now have the more updated one. Lets try and use the updated one to see if it still works.
 
 dataset="ABCD_v6" #ABCD or HCPYA or HCPYA_ABCDdr
 
@@ -166,8 +166,8 @@ elif [ "${dataset}" == "ABCD_v6" ]; then
         id_num="${file%%_*}"
         echo "Resampling from og sphere to ico-${ico_res}: sub-${id_num}"
 
-        wb_command -metric-resample "${id_num}_subj_L_cortex.shape.gii" naranjo_ico.L.surf.gii "${template_ico6_spehre_path}/ico-${ico_res}.L.surf.gii" BARYCENTRIC "resamp_${id_num}.L.shape.gii"
-        wb_command -metric-resample "${id_num}_subj_R_cortex.shape.gii" naranjo_ico.R.surf.gii "${template_ico6_spehre_path}/ico-${ico_res}.R.surf.gii" BARYCENTRIC "resamp_${id_num}.R.shape.gii"
+        wb_command -metric-resample "original_${id_num}_subj_L_cortex.shape.gii" naranjo_ico.L.surf.gii "${template_ico6_spehre_path}/ico-${ico_res}.L.surf.gii" BARYCENTRIC "resamp_${id_num}.L.shape.gii"
+        wb_command -metric-resample "original_${id_num}_subj_R_cortex.shape.gii" naranjo_ico.R.surf.gii "${template_ico6_spehre_path}/ico-${ico_res}.R.surf.gii" BARYCENTRIC "resamp_${id_num}.R.shape.gii"
 
     done
 
