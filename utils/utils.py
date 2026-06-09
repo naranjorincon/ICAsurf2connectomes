@@ -37,8 +37,8 @@ def make_netmat(data, netmat_dim=100):
     # ones is nice cause makes diagonal auto==1
     out_mat_init = np.zeros(2*sing_sub+netmat_dim).reshape(netmat_dim,netmat_dim)
 
-    # inds_uptri = np.triu_indices_from(out_mat_init,k=1) # k=1 means no diagonal?
-    inds_lowtri = np.tril_indices_from(out_mat_init,k=-1) # k=1 means no diagonal?
+    inds_lowtri = np.triu_indices_from(out_mat_init,k=1) # k=1 means no diagonal?
+    # inds_lowtri = np.tril_indices_from(out_mat_init,k=-1) # k=1 means no diagonal?
    
     out_mat_init[inds_lowtri] = data #presumably, data is from upper triangle from matlab but needs index lower trinagle to have good visuals not sure why...
     out_mat_init = out_mat_init + out_mat_init.T
@@ -266,7 +266,40 @@ def fcn_prep_data_get_loaders_ICAren(train_surface, validation_surface, b_sz=32,
     del normalized_train_surface, normalized_train_surface_reshaped, normalized_val_surface, normalized_val_surface_reshaped
     return train_loader, val_loader, mean_train_surface
 
-def fcn_prep_data_get_loaders(train_netmat, train_surface, validation_netmat, validation_surface, parcellation_N, netmat_prep_choice=None, surf_prep_choice=None, b_sz=32, mvae=True, write_fpath=''):
+def fcn_get_clean_data(surf: np.array, netmat: np.array, write_fpath: str=''):
+    '''removes subjects with NaNs in either surf or netmats.'''
+    no_nan_condition=False
+    no_inf_condition=False #assume there are inf/nans
+    surf_nan=np.isnan(surf); netmat_nan=np.isnan(netmat)
+    surf_inf=np.isinf(surf); netmat_inf=np.isinf(netmat)
+    if np.sum((surf_nan.sum(), netmat_nan.sum())) == 0:
+        write_to_file("No NaNs in data.", filepath=write_fpath)
+        no_nan_condition = True
+    if np.sum((surf_inf.sum(), netmat_inf.sum())) == 0:
+        write_to_file("No INFs in data.", filepath=write_fpath)
+        no_inf_condition = True
+    if no_nan_condition is True and no_inf_condition is True:
+        clean_surf, clean_netmat = surf, netmat
+        return clean_surf, clean_netmat
+    else:
+        write_to_file("NaNs or INFs detected. Cleaning...", filepath=write_fpath)
+        find_inf_mask_surf=(np.sum(np.sum(np.sum(surf_inf,axis=-1),axis=-1), axis=-1)).astype(bool)
+        find_nan_mask_surf=(np.sum(np.sum(np.sum(surf_nan,axis=-1),axis=-1), axis=-1)).astype(bool) #add backwards to get subject sums of NaNs
+        full_mask_surf = (find_inf_mask_surf+find_nan_mask_surf)
+        # same for netmat
+        find_inf_mask_netmat=(np.sum(netmat_inf,axis=-1)).astype(bool)
+        find_nan_mask_netmat=(np.sum(netmat_nan,axis=-1)).astype(bool) #add backwards to get subject sums of NaNs
+        full_mask_netmat = (find_inf_mask_netmat+find_nan_mask_netmat)
+        full_mask_all = (full_mask_surf+full_mask_netmat)
+        clean_netmat = netmat[~full_mask_all]
+        clean_surf = surf[~full_mask_all] #only keep does NOT in the mask, so inverse it
+
+    assert np.isnan(clean_surf).sum()==np.isnan(clean_netmat).sum()==0, "Cleanning successful."
+    # write_to_file(f'TRAINING COUNTS: surfnan{surf_check_nan} - surfinf{surf_check_inf} - netmatnan{netmat_check_nan} - netmatinf{netmat_check_inf}', filepath=write_fpath)
+
+    return clean_surf, clean_netmat
+
+def fcn_prep_data_get_loaders(train_netmat, train_surface, validation_netmat, validation_surface, parcellation_N, netmat_prep_choice=None, surf_prep_choice=None, b_sz: int=32, mvae: bool=False, write_fpath=''):
     '''
     Preprocessing function that takes in netmat parcellation of size N and suface maps for some component, like ICA. For netmats, input data is a subx[(N*(N-1))/2] matrix, 
     so upper triangle elements. parcellation = 100, then N=4950 and so on. Provided a tranformation condition is given, norm or fisherZ, ir applies both or either. Then, makes full connectome
@@ -275,7 +308,12 @@ def fcn_prep_data_get_loaders(train_netmat, train_surface, validation_netmat, va
     They all use this so make into a fcn all can call!
     '''
     tr_sub_dim, c_dim, p_dim, v_dim = train_surface.shape
-    write_to_file(f'regular surface shpae{train_surface.shape}', filepath=write_fpath)
+    # write_to_file(f'Regular surface shape:{train_surface.shape}', filepath=write_fpath)
+
+    write_to_file('Cleaning data first if needed! Training data.', filepath=write_fpath)
+    train_surface, train_netmat = fcn_get_clean_data(surf=train_surface, netmat=train_netmat, write_fpath=write_fpath)
+    write_to_file('Cleaning data first if needed! For validation/test now.', filepath=write_fpath)
+    validation_surface, validation_netmat = fcn_get_clean_data(surf=validation_surface, netmat=validation_netmat, write_fpath=write_fpath)
 
     mean_train_netmat = np.mean(train_netmat, axis=0)
     if surf_prep_choice=="norm":

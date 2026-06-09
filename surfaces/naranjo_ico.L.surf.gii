@@ -6,8 +6,8 @@
    <MetaData>
       <MD>
          <Name><![CDATA[ParentProvenance]]></Name>
-         <Value><![CDATA[naranjo_ico.R.surf.gii:
-/export/workbench/workbench-1.5.0_take2/bin_rh_linux64/../exe_rh_linux64/wb_command -surface-create-sphere 32492 naranjo_ico.R.surf.gii
+         <Value><![CDATA[/ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/surfaces/naranjo_ico.R.surf.gii:
+/opt/workbench/bin_linux64/../exe_linux64/wb_command -surface-create-sphere 32492 /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/surfaces/naranjo_ico.R.surf.gii
 
 ]]></Value>
       </MD>
@@ -15,25 +15,25 @@
          <Name><![CDATA[ProgramProvenance]]></Name>
          <Value><![CDATA[Connectome Workbench
 Type: Command Line Application
-Version: 1.5.0
+Version: 2.0.1
 Qt Compiled Version: 5.7.0
 Qt Runtime Version: 5.7.0
-Commit: 76441605d20536d81034a64c9d34ec393aa528b9
-Commit Date: 2021-02-16 13:46:47 -0600
-Compiled with OpenMP: YES
-Compiler: g++ (/export/gcc-4.8.5/bin)
-Compiler Version: 4.8.5
+Commit: 150de12f4f4b94b39bec6d9133ad2e7019d2d3ef
+Commit Date: 2024-10-15 17:38:41 -0500
+Compiler: g++ (/usr/bin)
+Compiler Version: 4.8.4
 Compiled Debug: NO
 Operating System: Linux
+Compiled with OpenMP: YES
 ]]></Value>
       </MD>
       <MD>
          <Name><![CDATA[Provenance]]></Name>
-         <Value><![CDATA[/export/workbench/workbench-1.5.0_take2/bin_rh_linux64/../exe_rh_linux64/wb_command -surface-flip-lr naranjo_ico.R.surf.gii naranjo_ico.L.surf.gii]]></Value>
+         <Value><![CDATA[/opt/workbench/bin_linux64/../exe_linux64/wb_command -surface-flip-lr /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/surfaces/naranjo_ico.R.surf.gii /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/surfaces/naranjo_ico.L.surf.gii]]></Value>
       </MD>
       <MD>
          <Name><![CDATA[WorkingDirectory]]></Name>
-         <Value><![CDATA[/ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/dataset_native_surfaces/ABCD]]></Value>
+         <Value><![CDATA[/ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/brain_reps_datasets/infomap_prior_ABCDdr/dr_infomap_priors/ABCD_infomap20_no_smooth/spatial]]></Value>
       </MD>
    </MetaData>
    <LabelTable>

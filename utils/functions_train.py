@@ -20,8 +20,8 @@ same dataset and dual regression was done with us both and all other participant
 similar than ICA1 me ICA5 you, but this big diagonal matrix 
 '''
 
-def train_MSE_skewloss(model, krak_mse_weight, krak_latent_weight, krak_corrI_weight, rho_loss_weight, train_loader, mean_train_label, device, optimizer, VAE_flag=False, netmat_prep_choice=None):
-    '''
+def train_MSE_skewloss(model, train_loader, mean_train_label, device, optimizer, VAE_flag=False, netmat_prep_choice=None):
+    ''' #krak_mse_weight, krak_latent_weight, krak_corrI_weight, rho_loss_weight
     Train function only using MSE and Skewloss (NO KRAKEN) to see effects of skewloss on original basic loss optimization. Function inputs are not relevant and not used for kraken, but for
     simplicity kept as function inputs. That way, all train scripts can stay the same and I just have to specify which train function is being used.
     '''
@@ -97,15 +97,15 @@ def train_MSE_skewloss(model, krak_mse_weight, krak_latent_weight, krak_corrI_we
         #adding demean rho as a loss term explictly, should be sum of tr_corr_subs_demean cause that is diagonals for that batch
         # and kept at 1-rho to skew loss to be bigger at worse performance and smaller at larger performance. 
         # print(f"checkkkkkkkkkk: {len(tr_corr_subs_demean)} {tr_corr_subs_demean[i].shape}")
-        B = tr_corr_subs_demean[i].shape # Batch for current iter, dynamic here because sometimes batches dont even split the main num
-        L_rho =  (B - (np.asarray(tr_corr_subs_demean[i]).sum())) + 1 #plus 1 because if pefect corr, then 32(batch)-32(sum of all true,pred correlations) and so L_rho=0 then weighting cant happen
+        # B = tr_corr_subs_demean[i].shape # Batch for current iter, dynamic here because sometimes batches dont even split the main num
+        # L_rho =  (B - (np.asarray(tr_corr_subs_demean[i]).sum())) + 1 #plus 1 because if pefect corr, then 32(batch)-32(sum of all true,pred correlations) and so L_rho=0 then weighting cant happen
         
-        if L_rho > 1:
-            weight_lrho = torch.tensor(rho_loss_weight, dtype=torch.int32) #torch.tensor(rho_loss_weight, dtype=torch.int32) # -1:65
-            L_rho = torch.tensor(L_rho, dtype=torch.int32)
-        else:
-            weight_lrho = torch.tensor(0, dtype=torch.int32) # no penalty
-            L_rho = torch.tensor(L_rho, dtype=torch.int32)
+        # if L_rho > 1:
+        #     weight_lrho = torch.tensor(rho_loss_weight, dtype=torch.int32) #torch.tensor(rho_loss_weight, dtype=torch.int32) # -1:65
+        #     L_rho = torch.tensor(L_rho, dtype=torch.int32)
+        # else:
+        #     weight_lrho = torch.tensor(0, dtype=torch.int32) # no penalty
+        #     L_rho = torch.tensor(L_rho, dtype=torch.int32)
     
         if VAE_flag:
             # loss = ((Lr + (krak_latent_weight * Lz) + weight_lrho*L_rho + kld_loss)) # loss uses demean so add that

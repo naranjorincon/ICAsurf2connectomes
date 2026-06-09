@@ -6,7 +6,7 @@
 #SBATCH --account=janine_bijsterbosch 
 # --mem-per-cpu 10G
 #SBATCH --cpus-per-task 10
-#SBATCH -t 0-12:00:00  # might depend on epoch, approx 50epoch = 24 hours
+#SBATCH -t 0-24:00:00 # it really takes like 12h
 
 
 # Adapted 05.29.2025 by Samuel Naranjo Rincon - orginally made for HCP but adapted to be for either HCP-YA or ABCD
@@ -24,7 +24,7 @@
 
 module load workbench  # /1.5.0, we don't have 1.5.0 anymore I think we now have the more updated one. Lets try and use the updated one to see if it still works.
 
-dataset="ABCD_v6" #ABCD or HCPYA or HCPYA_ABCDdr
+dataset="infomap_prior_ABCDdr" #ABCD or HCPYA or HCPYA_ABCDdr
 
 # step 1: make a folder for where we will put our brian data
 scratch_dir="/ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch" #technically not scratch, but no need to change variable name
@@ -228,6 +228,69 @@ elif [ "${dataset}" == "HCPYA_ABCDdr" ]; then
 
     mkdir ./original_space
     mv *cortex* ./original_space    
+
+elif [ "${dataset}" == "infomap_prior_ABCDdr" ]; then
+    mapdata="/ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/brain_reps_datasets/infomap_prior_ABCDdr/dr_infomap_priors/ABCD_infomap20_no_smooth/spatial" #path to surface data
+    map_dimension_icores="infomap_d20_ico06"
+    output_path_resampled_spheres="${surface_root}/infomap_dr_maps/${map_dimension_icores}"
+    mkdir -p "${output_path_resampled_spheres}"
+
+    # comments to know what's happening
+    echo "getting data from ${mapdata} and transferring to ${surface_root}"
+    cd "${mapdata}"
+    # for all subjects makes their L and R data
+    count=0
+    for dd in dr*; do    
+        count=$[count +1 ];
+        echo "Inside subject: ${count}"
+        dr_file="surf.dscalar.nii"
+        id_num=("${dd#*_}") # subject file to transform, come with sub-XXX
+
+        #check if already ran
+        FILE_left="${output_path_resampled_spheres}/original_${id_num}_subj_L_cortex.shape.gii"
+        FILE_right="${output_path_resampled_spheres}/original_${id_num}_subj_R_cortex.shape.gii"
+        if [ -f "${FILE_left}" ] && [ -f "${FILE_right}" ]; then
+            echo "${id_num} exists."
+            continue
+        fi
+
+        wb_command -cifti-separate "${dd}/${dr_file}" COLUMN -metric CORTEX_LEFT "${output_path_resampled_spheres}/original_${id_num}_subj_L_cortex.shape.gii"; 
+        wb_command -cifti-separate "${dd}/${dr_file}" COLUMN -metric CORTEX_RIGHT "${output_path_resampled_spheres}/original_${id_num}_subj_R_cortex.shape.gii"; 
+    done
+
+    # now we reformat from that space to ico6
+    template_ico6_spehre_path="${scratch_dir}/NeuroTranslate/surf2netmat/surfaces"
+    if test -e "${template_ico6_spehre_path}/naranjo_ico.L.surf.gii"; then # if it DOES exist
+        echo "Already made the ico6 template spheres"
+    else #if it does not then make one
+        wb_command -surface-create-sphere 32492 ${template_ico6_spehre_path}/naranjo_ico.R.surf.gii
+        wb_command -surface-flip-lr ${template_ico6_spehre_path}/naranjo_ico.R.surf.gii ${template_ico6_spehre_path}/naranjo_ico.L.surf.gii
+        wb_command -set-structure ${template_ico6_spehre_path}/naranjo_ico.L.surf.gii CORTEX_LEFT
+        wb_command -set-structure ${template_ico6_spehre_path}/naranjo_ico.R.surf.gii CORTEX_RIGHT
+    fi
+
+    cd "${output_path_resampled_spheres}"
+    # step 4: map the brain_rep onto the 32k sphere and then upsample to the Dahan 2021 ico-6 sphere of 40962 verteces (ico-6)
+    ico_res="6"
+    for file in *L_cortex.shape*; do #for each left file, there is a right one so this should be good enough
+        id_num=${file#*sub-}; id_num=${id_num%%_subj*};
+        echo "Resampling from og sphere to ico-${ico_res}: sub-${id_num}"
+
+        FILE_left="${output_path_resampled_spheres}/resamp_sub-${id_num}.L.shape.gii"
+        FILE_right="${output_path_resampled_spheres}/resamp_sub-${id_num}.R.shape.gii"
+        if [ -f "${FILE_left}" ] && [ -f "${FILE_right}" ]; then
+            echo "${id_num} exists."
+            continue
+        fi
+
+        wb_command -metric-resample "${output_path_resampled_spheres}/original_sub-${id_num}_subj_L_cortex.shape.gii" "${template_ico6_spehre_path}/naranjo_ico.L.surf.gii" "${template_ico6_spehre_path}/ico-${ico_res}.L.surf.gii" BARYCENTRIC "${output_path_resampled_spheres}/resamp_sub-${id_num}.L.shape.gii"
+        wb_command -metric-resample "${output_path_resampled_spheres}/original_sub-${id_num}_subj_R_cortex.shape.gii" "${template_ico6_spehre_path}/naranjo_ico.R.surf.gii" "${template_ico6_spehre_path}/ico-${ico_res}.R.surf.gii" BARYCENTRIC "${output_path_resampled_spheres}/resamp_sub-${id_num}.R.shape.gii"
+
+    done
+
+    #to not over load and have many copies per subject, lets reset and remove the original copies s.t. we only have the ico-version we created
+    chmod 771 ${output_path_resampled_spheres}
+    rm -rf "${output_path_resampled_spheres}/original*" #not needed cann be recomputed if necessary
 else
     echo "That dataset is invalid/does not exit"
     # unknown_dataset_glaf=T

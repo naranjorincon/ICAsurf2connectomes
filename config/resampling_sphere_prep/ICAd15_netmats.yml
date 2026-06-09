@@ -1,0 +1,56 @@
+# @Author: Samuel Naranjo Rincon
+# @Last Modified time: 2024-02-21 10:56am
+resolution:
+  ico: 6
+  sub_ico: 2
+
+data:
+  dataset: ABCD_v5 #ABCD, HCPYA, HCPYA_ABCDdr, infomap_prior_ABCDdr
+  parcellation_name: schaefer 
+  parcellation_nodes: 100
+  parcellation_type: full #full, partial correlation mats
+  sub_ids_path: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/utils/dr_scripts
+  netmats_paths: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/ABCD_NetMats
+  patch_indeces_path: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/patch_extraction
+  hemisphere: 1L #1R
+  path_to_data: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/brain_reps_datasets/infomap_prior_ABCDdr/infomap_dr_maps/infomap_d20_ico06 #ico res
+  path_to_subject_lists: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/utils/subj_ids
+  skipped_subject_path: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/utils/subj_ids
+  output_maps_netmats_path: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/brain_reps_datasets/infomap_prior_ABCDdr/maps_and_netmats/top2schf100
+  # data_path: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/brain_reps_datasets/ABCD/ICA_maps/ICAd15_ico06
+  # patches_path: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/patch_extraction
+  # translation: ICAd15_schfd100 #scan_age #birth_age -- adapted, but we want to change to netmat pred
+  # split: train #train #val/validation # or test
+  # channels: 20
+  # fs_data_path: d15_fs_LR # needed for HCPYA for now
+  # norm_flag: False
+  # unet_arch: False
+
+# output:
+#   folder: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/brain_reps_datasets/ABCD/ICA_maps/ICAd15_ico05
+#   output_folder_netmat: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/brain_reps_datasets/ABCD/schaefer_mats/netmat_d100
+
+sub_ico_1:
+  num_patches: 80 
+  num_vertices: 561 
+
+sub_ico_2:
+  num_patches: 320 
+  num_vertices: 153
+
+sub_ico_3:
+    num_patches: 1280
+    num_vertices: 45
+
+sub_ico_4:
+    num_patches: 5120
+    num_vertices: 15
+
+sub_ico_5:
+    num_patches: 20480
+    num_vertices: 6 
+
+sub_ico_6:
+  num_patches: 81920
+  num_vertices:  40962
+

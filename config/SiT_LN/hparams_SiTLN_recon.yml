@@ -34,7 +34,7 @@ training:
   netmat_prep_choice: demean #norm or fisherz or demean, None, demean_fisherz
   surf_prep_choice: norm
   parcellation_corr_type: full #full or partial
-  overfit_condition: True
+  overfit_condition: False
   overfit_condition_sub_range: 2000 # up to which subj, if overfit_condition false this is ignored
   VAE_flag: False
 
@@ -52,11 +52,11 @@ transformer:
   dim_head: 64 #64, 128
   emb_dropout: 0.3
   dropout: 0.5 # moved this higher, was originall 0.1
-  krak_mse_weight: 1000 #1,000 # recon weight
-  rho_loss_weight: 0 #original has been 10,000
-  krak_latent_weight: 10 #10 #latent weight
-  krak_corrEYE_weight: 1 #1000
-  model_details: 011426_d6h3_tiny_adamW_cosinedecay_recon_MSEtrain_1L_full_demean_exp100_wGelu_ico04
+  # krak_mse_weight: 1000 #1,000 # recon weight
+  # rho_loss_weight: 0 #original has been 10,000
+  # krak_latent_weight: 10 #10 #latent weight
+  # krak_corrEYE_weight: 1 #1000
+  model_details: 060726_d6h3_tiny_adamW_cosinedecay_recon_MSEtrain_1L_full_demean_exp100_wGelu_ico02
 
 optimisation:
   optimiser: AdamW # SGD = stochastic gradent descent; Adam = Adam optimization

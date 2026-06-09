@@ -210,9 +210,11 @@ def whole_model_arch(config):
                 print("DATA already demeaned and predicted as such. For original versions, need to get unprep raw netmat data to get means.")
                 hemi_cond="1L"
                 if translation == "ICAd15_glasserd360":
-                    train_netmat_np = np.load(f"{scratch_path}/NeuroTranslate/brain_reps_datasets/ABCD/glasser_mats/netmat_d{from_parcellation}/{hemi_cond}_train_netmat_clean.npy")
-                else:
-                    train_netmat_np = np.load(f"{scratch_path}/NeuroTranslate/brain_reps_datasets/ABCD/schaefer_mats/netmat_d{from_parcellation}/{hemi_cond}_train_netmat_clean.npy")
+                    train_netmat_np = np.load(f"{scratch_path}/NeuroTranslate/brain_reps_datasets/{datasets}/glasser_mats/netmat_d{from_parcellation}/{hemi_cond}_train_netmat_clean.npy")
+                elif "ICAd15_sch" in translation: #if its a ICA to schaefer translation
+                    train_netmat_np = np.load(f"{scratch_path}/NeuroTranslate/brain_reps_datasets/{datasets}/schaefer_mats/netmat_d{from_parcellation}/{hemi_cond}_train_netmat_clean.npy")
+                elif "INFOMAP" in translation: #if its an infomap-->parcellation translation
+                    train_netmat_np = np.load(f"{scratch_path}/NeuroTranslate/brain_reps_datasets/{datasets}/maps_and_netmats/top2schf{from_parcellation}/train_vecnetmat_uppertri.npy")
                 # train_surf_np = np.load(f"{scratch_path}/NeuroTranslate/brain_reps_datasets/{datasets}/ICA_maps/ICAd15_ico02/{hemi_cond}_train_surf.npy")
                 print(f'Loaded in TRAIN. They have shapes: {train_netmat_np.shape} respectively.')
 
@@ -231,15 +233,15 @@ def whole_model_arch(config):
                 else:
                     if translation == "ICAd15_glasserd360":
                         te_netmat_np = np.load(f"{scratch_path}/NeuroTranslate/brain_reps_datasets/ABCD/glasser_mats/netmat_d{from_parcellation}/{hemi_cond}_test_netmat_clean.npy")
-                    else:                       
+                    elif "ICAd15_sch" in translation:                       
                         te_netmat_np = np.load(f"{scratch_path}/NeuroTranslate/brain_reps_datasets/{datasets}/schaefer_mats/netmat_d{from_parcellation}/{hemi_cond}_test_netmat_clean.npy")
-                    # te_surf_np = np.load(f"{scratch_path}/NeuroTranslate/brain_reps_datasets/{datasets}/ICA_maps/ICAd15_ico02/{hemi_cond}_test_surf.npy")
+                    elif "INFOMAP" in translation: #if its an infomap-->parcellation translation
+                        te_netmat_np = np.load(f"{scratch_path}/NeuroTranslate/brain_reps_datasets/{datasets}/maps_and_netmats/top2schf{from_parcellation}/test_vecnetmat_uppertri.npy")
 
                 print(f'Loaded in TEST. They have shapes: {te_netmat_np.shape} respectively.')
 
                 train_mean_flatten_true = np.mean(train_netmat_np, axis=0, keepdims=True)
                 train_mean_flatten_pred = train_mean_flatten_true #same in this case
-
                 test_mean_flatten_true = np.mean(te_netmat_np, axis=0, keepdims=True)
                 test_mean_flatten_pred = test_mean_flatten_true
 

@@ -324,12 +324,12 @@ def whole_model_arch(config):
     # visualize to again make sure all looks good
     train_true_netamts = train_truth_holder
     train_pred_netmats = train_pred_holder
-    test_true_netamts = test_truth_holder
-    test_pred_netamts = test_pred_holder
+    test_true_netmats = test_truth_holder
+    test_pred_netmats = test_pred_holder
     a = make_nemat_allsubj(train_true_netamts,from_parcellation)
     b = make_nemat_allsubj(train_pred_netmats,from_parcellation)
-    c = make_nemat_allsubj(test_true_netamts,from_parcellation)
-    d = make_nemat_allsubj(test_pred_netamts,from_parcellation)
+    c = make_nemat_allsubj(test_true_netmats,from_parcellation)
+    d = make_nemat_allsubj(test_pred_netmats,from_parcellation)
 
     plt.rcParams.update({'font.size': 18})
 
@@ -529,7 +529,7 @@ def whole_model_arch(config):
 
         # take the time to match these new subjects with BEHV data and the imaging data we have
         print(ABCD_main_ids_clean.shape)
-        print(ABCD_original_ABCD_behv_match_df_clean["participant_id"])
+        print(len(ABCD_original_ABCD_behv_match_df_clean["participant_id"]))
         subjs_with_behv_and_netmat_mask = np.isin(ABCD_main_ids_clean, ABCD_original_ABCD_behv_match_df_clean["participant_id"])
         print((subjs_with_behv_and_netmat_mask).sum()) # should be the same as before N=2822
         netmats_match = ABCD_main_ids[subjs_with_behv_and_netmat_mask]
@@ -544,7 +544,7 @@ def whole_model_arch(config):
 
         # repeat for test
         print(ABCD_main_ids_test_clean.shape)
-        print(ABCD_original_test_ABCD_behv_match_df_clean["participant_id"])
+        print(len(ABCD_original_test_ABCD_behv_match_df_clean["participant_id"]))
         subjs_test_with_behv_and_netmat_mask = np.isin(ABCD_main_ids_test_clean, ABCD_original_test_ABCD_behv_match_df_clean["participant_id"])
         print((subjs_test_with_behv_and_netmat_mask).sum()) # should be the same as before N=2822
         netmats_match_test = ABCD_main_ids_test[subjs_test_with_behv_and_netmat_mask]

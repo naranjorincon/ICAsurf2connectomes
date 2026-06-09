@@ -1,30 +1,29 @@
 #!/bin/bash
-#SBATCH -J dr_sub-00NPMHND
-#SBATCH --output=sub-00NPMHND_/ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/batch/ICA_logs/_%j.out
-#SBATCH --error=sub-00NPMHND_/ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/batch/ICA_logs/_%j.err
+#SBATCH -J dr_sub-ZV54BWRE
+#SBATCH --output=/ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/batch/ICA_logs/sub-ZV54BWRE_%j.out
+#SBATCH --error=/ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/batch/ICA_logs/sub-ZV54BWRE_%j.err
 #SBATCH --partition=tier2_cpu 
 #SBATCH --account=janine_bijsterbosch
 #SBATCH --mem-per-cpu 4G 
 #SBATCH --cpus-per-task 6
-#SBATCH -t 0-01:00:00 
+#SBATCH -t 0-00:30:00 
 
 # Constant Paths
-# base_dir=/ceph/chpc/shared/janine_bijsterbosch_group/WAPIAW_2026/ICA 
-grp_map_fpath=/ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/data/ABCD/infomap_20net_prior/infomap_spatial_priors.dscalar.nii
+grp_map_fpath=/ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/data/ABCD/infomap_20net_prior/infomap_functional_priors.dscalar.nii
 python_script_path=/ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/utils/dr_scripts/run_pyder_subject_fyzeen.py
 
 if [ no_smooth = no_smooth ]; then
-    INPUT_CIFTI=/ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/brain_reps_datasets/ABCD_v6/cortex_data/ses-00A/no_smooth/sub-00NPMHND_cortex_only_demean.dtseries.nii
+    INPUT_CIFTI=/ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/brain_reps_datasets/ABCD/cortex_data/ses-00A/no_smooth/sub-ZV54BWRE_cortex_only_demean.dtseries.nii
 elif [ no_smooth = 2mm ] || [ no_smooth = 4mm ] || [ no_smooth = 6mm ]; then
-    INPUT_CIFTI=/ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/brain_reps_datasets/ABCD_v6/cortex_data/ses-00A/no_smooth_smooth/sub-00NPMHND_cortex_only_demean_smooth_no_smooth.dtseries.nii
+    INPUT_CIFTI=/ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/brain_reps_datasets/ABCD/cortex_data/ses-00A/no_smooth_smooth/sub-ZV54BWRE_cortex_only_demean_smooth_no_smooth.dtseries.nii
 else
     echo Error: unrecognized smoothing value
     exit 1
 fi
 
-out_timecourse_fpath=/ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/brain_reps_datasets/ABCD_v6/dr_infomap_priors/ABCD_infomap20_no_smooth/spatial/dr_sub-00NPMHND/timecourse.csv 
-out_map_fpath=/ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/brain_reps_datasets/ABCD_v6/dr_infomap_priors/ABCD_infomap20_no_smooth/spatial/dr_sub-00NPMHND/surf.nii
-fixed_out_map_fpath=/ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/brain_reps_datasets/ABCD_v6/dr_infomap_priors/ABCD_infomap20_no_smooth/spatial/dr_sub-00NPMHND/surf.dscalar.nii
+out_timecourse_fpath=/ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/brain_reps_datasets/infomap_prior_ABCDdr/dr_infomap_priors/ABCD_infomap20_no_smooth/functional/dr_sub-ZV54BWRE/timecourse.csv 
+out_map_fpath=/ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/brain_reps_datasets/infomap_prior_ABCDdr/dr_infomap_priors/ABCD_infomap20_no_smooth/functional/dr_sub-ZV54BWRE/surf.nii
+fixed_out_map_fpath=/ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/brain_reps_datasets/infomap_prior_ABCDdr/dr_infomap_priors/ABCD_infomap20_no_smooth/functional/dr_sub-ZV54BWRE/surf.dscalar.nii
 
 # Load Environment
 module load fsl
@@ -39,5 +38,5 @@ python3 ${python_script_path} -func "${INPUT_CIFTI}" -map "${out_map_fpath}" -ti
 module load workbench
 wb_command -cifti-convert-to-scalar "${out_map_fpath}" ROW "${fixed_out_map_fpath}"
 
-chmod -R 771 /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/brain_reps_datasets/ABCD_v6/dr_infomap_priors/ABCD_infomap20_no_smooth/spatial/dr_sub-00NPMHND
+chmod -R 771 /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/brain_reps_datasets/infomap_prior_ABCDdr/dr_infomap_priors/ABCD_infomap20_no_smooth/functional/dr_sub-ZV54BWRE
 
