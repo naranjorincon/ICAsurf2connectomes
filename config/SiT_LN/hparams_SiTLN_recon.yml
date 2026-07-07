@@ -1,31 +1,30 @@
 # @Author: Samuel Naranjo Rincón
-# @Last Modified time: JAN 27 2026
+# @Last Modified time: JUN 29 2026
 
 data:
-  data_path: ../data/{}/{} #../data/{}/{}
-  translation: ICAd15_schfd100 # mesh dim -> nemat dim.  # ICAd15_schfd100 ICAd15_schfd300 ICAd15_glasserd360
-  version: normICAdemeanMAT
-  model_type: kSiTLN
-  from_parcellation: 100
-  to_icamap: 15
+  translation: ICAd15_glasserd360 #ICAd15_schfd100 ICAd15_schfd300 ICAd15_glasserd360 INFOMAPd20_schfd100 ICAd15_ICAnetmatd15 INFOMAPd20_INFOMAPnetmatd20
+  version: normICAdemeanMAT #normICAdemeanMAT, normIMdemeanMAT, normICAdemeanICAMAT, normIMdemeanIMMAT
+  model_type: SiTLN
+  from_parcellation: 360 #does not matter for when translating to ICA/IM netmats
+  to_icamap: 15 #15 or 20 for infomap
   icores: 2
+  parcellation_name: glasser #schaefer, glasser
 
 logging:
-  folder_to_save_model: ../logs/SiT/
-  sanity_file_pth: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/batch/kSiTLN_recon_normICAdemeanMAT_schfd100_MSEtrain
-  test_file_pth: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/batch/kSiTLN_recon_normICAdemeanMAT_schfd100_MSEtrain_test
+  sanity_file_pth: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/batch/{}_{}_{}d{}_train_full
+  test_file_pth: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/batch/{}_{}_{}d{}_test_full
   model_out_root: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/model_out
-  sanity_check_version: recon_krakenonly
+  model_save_path: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/logs
 
 training:
   fcn_train: train_MSE_skewloss #train_MSE_skewloss #train_krakenonly
   flag_experiment_ICArecon: False
   fcn_model_to_use: SurfaceImageTransformer #linear_translator
-  dataset_choice: ABCD # ABCD or HCPYA or HCPYA_ABCDdr
+  dataset_choice: ABCD # ABCD or HCPYA or HCPYA_ABCDdr or infomap_prior_ABCDdr
   LR: 0.01 #0.00001 is original
   bs: 32 # batch size, og is 256
   val_epoch: 1 #5 is our standard, arbitary so feel free to change.
-  epochs: 100
+  epochs: 200
   bilateral_condition: False #if true, uses 2LR, else just 1L
   hemi_cond: 1L
   channel_specific_condition: False #if true, does predictions on a single channel
@@ -52,11 +51,7 @@ transformer:
   dim_head: 64 #64, 128
   emb_dropout: 0.3
   dropout: 0.5 # moved this higher, was originall 0.1
-  # krak_mse_weight: 1000 #1,000 # recon weight
-  # rho_loss_weight: 0 #original has been 10,000
-  # krak_latent_weight: 10 #10 #latent weight
-  # krak_corrEYE_weight: 1 #1000
-  model_details: 060726_d6h3_tiny_adamW_cosinedecay_recon_MSEtrain_1L_full_demean_exp100_wGelu_ico02
+  model_details: 070426_d6h3_tiny_adamW_cosinedecay_1L_full_demean_glss360_wGelu_ico02
 
 optimisation:
   optimiser: AdamW # SGD = stochastic gradent descent; Adam = Adam optimization
@@ -89,14 +84,6 @@ CosineDecayRestart:
   T_mult: 1 #A factor by which T_i increases after a restart. Default: 1.
   eta_min: 0.00001
   
-# StepLR: 
-#   stepsize: 1000
-#   decay: 0.5
-
-# CosineDecay:
-#   T_max: 5000
-#   eta_min: 0.0001
-
 sub_ico_0:
     num_patches: 20 
     num_vertices: 2145 

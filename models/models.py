@@ -189,6 +189,7 @@ class SurfaceImageTransformer(nn.Module):
         self.mlp_head = nn.Sequential(
             nn.LayerNorm(num_patches*dim),
             nn.GELU(),
+            # nn.Tanh(),
             nn.Linear(num_patches*dim, upper_tri)
         )
 

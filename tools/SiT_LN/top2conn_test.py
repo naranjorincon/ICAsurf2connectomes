@@ -25,6 +25,10 @@ def whole_model_arch(config):
         # write_to_file(f"Using ico-{icores} surf data.", filepath=write_fpath)
     model_out_root = config['logging']['model_out_root']
     model_details = config['transformer']['model_details']
+    version = config['data']['version'] #normICAdemeanfishzMAT
+    model_type = config['data']['model_type']
+    parcellation_name = config['data']['parcellation_name']
+    from_parcellation = config['data']['from_parcellation']
     netmat_prep_choice = config['training']['netmat_prep_choice']
     fcn_model_module = getattr(models, config['training']['fcn_model_to_use']) 
     flag_experiment_ICArecon = config['training']['flag_experiment_ICArecon']
@@ -34,17 +38,14 @@ def whole_model_arch(config):
         specific_channel = config['training']['specific_channel']
         specific_channel_end = config['training']['specific_channel_end']
         model_details = config['transformer']['model_details'] + f"_chnl{specific_channel}"
-        write_fpath = config['logging']['sanity_file_pth'] + f'ico-{icores}' + f'_chnl{specific_channel}' + '.print'
+        write_fpath = config['logging']['sanity_file_pth'].format(model_type, version, parcellation_name, from_parcellation) + f'ico-{icores}' + f'_chnl{specific_channel}.print'
     else:
-        write_fpath = config['logging']['test_file_pth'] + f'ico-{icores}' + '.print'
+        write_fpath = config['logging']['test_file_pth'].format(model_type, version, parcellation_name, from_parcellation) + f'ico-{icores}.print'
     surf_prep_choice = config['training']['surf_prep_choice']
     dataset_choice = config['training']['dataset_choice']
     bilateral_condition = config['training']['bilateral_condition'] # both hemispheres instead of 1
     parcellation_corr_type = config['training']['parcellation_corr_type']
-    from_parcellation = config['data']['from_parcellation']
     translation = config['data']['translation']
-    version = config['data']['version'] #normICAdemeanfishzMAT
-    model_type = config['data']['model_type']
     VAE_flag = config['training']['VAE_flag']
     device = "cpu"
     TEST_FLAG = config['testing']['immediate_test_flag']

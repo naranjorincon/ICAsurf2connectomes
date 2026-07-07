@@ -37,8 +37,8 @@ def make_netmat(data, netmat_dim=100):
     # ones is nice cause makes diagonal auto==1
     out_mat_init = np.zeros(2*sing_sub+netmat_dim).reshape(netmat_dim,netmat_dim)
 
-    inds_lowtri = np.triu_indices_from(out_mat_init,k=1) # k=1 means no diagonal?
-    # inds_lowtri = np.tril_indices_from(out_mat_init,k=-1) # k=1 means no diagonal?
+    # inds_lowtri = np.triu_indices_from(out_mat_init,k=1) # k=1 means no diagonal?
+    inds_lowtri = np.tril_indices_from(out_mat_init,k=-1) # k=1 means no diagonal?
    
     out_mat_init[inds_lowtri] = data #presumably, data is from upper triangle from matlab but needs index lower trinagle to have good visuals not sure why...
     out_mat_init = out_mat_init + out_mat_init.T
@@ -266,7 +266,7 @@ def fcn_prep_data_get_loaders_ICAren(train_surface, validation_surface, b_sz=32,
     del normalized_train_surface, normalized_train_surface_reshaped, normalized_val_surface, normalized_val_surface_reshaped
     return train_loader, val_loader, mean_train_surface
 
-def fcn_get_clean_data(surf: np.array, netmat: np.array, write_fpath: str=''):
+def fcn_get_clean_data(surf: np.array, netmat: np.array, subject_list_path: str, write_fpath: str='', bilateral_condition: bool=False):
     '''removes subjects with NaNs in either surf or netmats.'''
     no_nan_condition=False
     no_inf_condition=False #assume there are inf/nans
@@ -280,7 +280,19 @@ def fcn_get_clean_data(surf: np.array, netmat: np.array, write_fpath: str=''):
         no_inf_condition = True
     if no_nan_condition is True and no_inf_condition is True:
         clean_surf, clean_netmat = surf, netmat
-        return clean_surf, clean_netmat
+
+        if subject_list_path is None:
+            sample_size = surf.shape[0] #should be first dim
+            main_subj_ID_root="/ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/utils/subj_ids"
+            if sample_size > 1000:
+                subject_list_path=f"{main_subj_ID_root}/ABCD_train_IDs.txt"
+            elif sample_size < 1000 and sample_size > 700:
+                subject_list_path=f"{main_subj_ID_root}/ABCD_validation_IDs.txt"
+            elif sample_size < 700:
+                subject_list_path=f"{main_subj_ID_root}/ABCD_test_IDs.txt"
+
+        subjects_to_keep = pd.read_csv(subject_list_path) #same as what is given
+        return clean_surf, clean_netmat, subjects_to_keep
     else:
         write_to_file("NaNs or INFs detected. Cleaning...", filepath=write_fpath)
         find_inf_mask_surf=(np.sum(np.sum(np.sum(surf_inf,axis=-1),axis=-1), axis=-1)).astype(bool)
@@ -293,13 +305,59 @@ def fcn_get_clean_data(surf: np.array, netmat: np.array, write_fpath: str=''):
         full_mask_all = (full_mask_surf+full_mask_netmat)
         clean_netmat = netmat[~full_mask_all]
         clean_surf = surf[~full_mask_all] #only keep does NOT in the mask, so inverse it
+        subj_mask = (np.where(full_mask_all==0)[0]) #false means good here, same as before with ~full_mask_all
+        
+        #subjects to keep so we can trac which have NaNs/INF for later
+        if subject_list_path is None:
+            sample_size = surf.shape[0] #should be first dim
+            main_subj_ID_root="/ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/utils/subj_ids"
+            
+            if bilateral_condition is True:
+                if sample_size == 14242: #then bilateral
+                    write_to_file("USING TRAIN SUBJECT IDS", filepath=write_fpath)
+                    sub_ids1 = pd.read_csv(f"{main_subj_ID_root}/ABCD_train_IDs.txt")
+                    sub_ids2 = pd.read_csv(f"{main_subj_ID_root}/ABCD_train_IDs.txt")
+                    sub_ids = pd.concat([sub_ids1, sub_ids2], ignore_index=True) #row wise by default
+                elif sample_size == 1856:
+                    write_to_file("USING VALIDATION SUBJECT IDS", filepath=write_fpath)
+                    sub_ids1 = pd.read_csv(f"{main_subj_ID_root}/ABCD_validation_IDs.txt")
+                    sub_ids2 = pd.read_csv(f"{main_subj_ID_root}/ABCD_validation_IDs.txt")
+                    sub_ids = pd.concat([sub_ids1, sub_ids2], ignore_index=True)
+                elif sample_size == 1248:
+                    write_to_file("USING VALIDATION SUBJECT IDS", filepath=write_fpath)
+                    sub_ids1 = pd.read_csv(f"{main_subj_ID_root}/ABCD_test_IDs.txt")
+                    sub_ids2 = pd.read_csv(f"{main_subj_ID_root}/ABCD_test_IDs.txt")
+                    sub_ids = pd.concat([sub_ids1, sub_ids2], ignore_index=True)
+                else:
+                    write_to_file("UNRECOGNIZED SAMPLE SIZE.", filepath=write_fpath)
+            else:
+                if sample_size > 5000:
+                    write_to_file("USING TRAIN SUBJECT IDS", filepath=write_fpath)
+                    sub_ids = pd.read_csv(f"{main_subj_ID_root}/ABCD_train_IDs.txt")
+                elif sample_size > 800 and sample_size < 1000:
+                    write_to_file("USING VALIDATION SUBJECT IDS", filepath=write_fpath)
+                    sub_ids = pd.read_csv(f"{main_subj_ID_root}/ABCD_validation_IDs.txt")
+                elif sample_size < 700:
+                    write_to_file("USING VALIDATION SUBJECT IDS", filepath=write_fpath)
+                    sub_ids = pd.read_csv(f"{main_subj_ID_root}/ABCD_test_IDs.txt")
+                else:
+                    write_to_file("UNRECOGNIZED SAMPLE SIZE.", filepath=write_fpath)
+                    
+            
+            subject_list = sub_ids["subID"].to_numpy() #needs to be numpy for later indecing based on mask
+        else: #if one is given, just use what it is, load it and make it numpy
+            sub_ids = pd.read_csv(subject_list_path)
+            subject_list = sub_ids["subID"].to_numpy()
+        
+        subjects_to_keep = pd.DataFrame({
+            "subID": subject_list[subj_mask]
+            })
 
-    assert np.isnan(clean_surf).sum()==np.isnan(clean_netmat).sum()==0, "Cleanning successful."
-    # write_to_file(f'TRAINING COUNTS: surfnan{surf_check_nan} - surfinf{surf_check_inf} - netmatnan{netmat_check_nan} - netmatinf{netmat_check_inf}', filepath=write_fpath)
+    assert np.isnan(clean_surf).sum()==np.isnan(clean_netmat).sum()==0, "Cleanning unsuccessful."
 
-    return clean_surf, clean_netmat
+    return clean_surf, clean_netmat, subjects_to_keep
 
-def fcn_prep_data_get_loaders(train_netmat, train_surface, validation_netmat, validation_surface, parcellation_N, netmat_prep_choice=None, surf_prep_choice=None, b_sz: int=32, mvae: bool=False, write_fpath=''):
+def fcn_prep_data_get_loaders(train_netmat, train_surface, validation_netmat, validation_surface, parcellation_N, netmat_prep_choice=None, surf_prep_choice=None, b_sz: int=32, mvae: bool=False, write_fpath: str='', train_subject_list=None, validation_subject_list=None,bilateral_condition: bool=False):
     '''
     Preprocessing function that takes in netmat parcellation of size N and suface maps for some component, like ICA. For netmats, input data is a subx[(N*(N-1))/2] matrix, 
     so upper triangle elements. parcellation = 100, then N=4950 and so on. Provided a tranformation condition is given, norm or fisherZ, ir applies both or either. Then, makes full connectome
@@ -311,9 +369,9 @@ def fcn_prep_data_get_loaders(train_netmat, train_surface, validation_netmat, va
     # write_to_file(f'Regular surface shape:{train_surface.shape}', filepath=write_fpath)
 
     write_to_file('Cleaning data first if needed! Training data.', filepath=write_fpath)
-    train_surface, train_netmat = fcn_get_clean_data(surf=train_surface, netmat=train_netmat, write_fpath=write_fpath)
+    train_surface, train_netmat, train_subjects_to_keep = fcn_get_clean_data(surf=train_surface, netmat=train_netmat, subject_list_path=train_subject_list, write_fpath=write_fpath, bilateral_condition=bilateral_condition)
     write_to_file('Cleaning data first if needed! For validation/test now.', filepath=write_fpath)
-    validation_surface, validation_netmat = fcn_get_clean_data(surf=validation_surface, netmat=validation_netmat, write_fpath=write_fpath)
+    validation_surface, validation_netmat, validation_subjects_to_keep = fcn_get_clean_data(surf=validation_surface, netmat=validation_netmat, subject_list_path=validation_subject_list, write_fpath=write_fpath, bilateral_condition=bilateral_condition)
 
     mean_train_netmat = np.mean(train_netmat, axis=0)
     if surf_prep_choice=="norm":
@@ -364,53 +422,6 @@ def fcn_prep_data_get_loaders(train_netmat, train_surface, validation_netmat, va
         write_to_file('NetMat prep chosen is DEMEAN ', filepath=write_fpath)
         tr_transformed_netmats = (train_netmat - mean_train_netmat)
         val_transformed_netmats = (validation_netmat - mean_train_netmat)
-
-    elif netmat_prep_choice == "demean_winsor":
-        write_to_file('NetMat prep chosen is (1)DEMEAN (2)WINSOR', filepath=write_fpath)
-        train_netmat_demean = (train_netmat - mean_train_netmat)
-        val_netmat_demean = (validation_netmat - mean_train_netmat)
-        from scipy.stats.mstats import winsorize
-        tr_transformed_netmats = np.zeros(train_netmat_demean.shape)
-        val_transformed_netmats = np.zeros(val_netmat_demean.shape)
-        for ee in range(train_netmat.shape[1]):
-            tr_transformed_netmats[:,ee] = winsorize(train_netmat_demean[:,ee], limits=[0.05, 0.05])
-            val_transformed_netmats[:,ee] = winsorize(val_netmat_demean[:,ee], limits=[0.05, 0.05])
-    
-    elif netmat_prep_choice == "winsor_seperate":
-        write_to_file('NetMat prep chosen is RAW WINSOR, seperate train/val', filepath=write_fpath)
-        from scipy.stats.mstats import winsorize
-        tr_transformed_netmats = np.zeros(train_netmat.shape)
-        val_transformed_netmats = np.zeros(validation_netmat.shape)
-        for ee in range(train_netmat.shape[1]):
-            tr_transformed_netmats[:,ee] = winsorize(train_netmat[:,ee], limits=[0.05, 0.05])
-            val_transformed_netmats[:,ee] = winsorize(validation_netmat[:,ee], limits=[0.05, 0.05])
-
-    elif netmat_prep_choice == "winsor_demean":
-        write_to_file('NetMat prep chosen is (1)WINSOR TOGETHER (2)DEMEAN', filepath=write_fpath)
-        from scipy.stats.mstats import winsorize
-        tr_val_fused_rows = np.concatenate((train_netmat,validation_netmat), axis=0)
-        tr_val_fused_rows_netamts = np.zeros(tr_val_fused_rows.shape) #8k, 4950
-        
-        for ee in range(tr_val_fused_rows_netamts.shape[1]):
-            tr_val_fused_rows_netamts[:,ee] = winsorize(tr_val_fused_rows[:,ee], limits=[0.05, 0.05])
-            # val_transformed_netmats[:,ee] = winsorize(val_netmat_demean[:,ee], limits=[0.05, 0.05])
-        
-        tr_val_fused_rows_netamts_demean = (tr_val_fused_rows_netamts - mean_train_netmat)
-        tr_transformed_netmats = tr_val_fused_rows_netamts_demean[:train_netmat.shape[0]]
-        val_transformed_netmats = tr_val_fused_rows_netamts_demean[:validation_netmat.shape[0]]
-    
-    elif netmat_prep_choice == "winsor":
-        write_to_file('NetMat prep chosen is RAW WINSOR', filepath=write_fpath)
-        from scipy.stats.mstats import winsorize
-        tr_val_fused_rows = np.concatenate((train_netmat,validation_netmat), axis=0)
-        tr_val_fused_rows_netamts = np.zeros(tr_val_fused_rows.shape)
-        
-        for ee in range(tr_val_fused_rows_netamts.shape[1]):
-            tr_val_fused_rows_netamts[:,ee] = winsorize(tr_val_fused_rows[:,ee], limits=[0.05, 0.05])
-        
-        tr_transformed_netmats = tr_val_fused_rows_netamts[:train_netmat.shape[0]]
-        val_transformed_netmats = tr_val_fused_rows_netamts[:validation_netmat.shape[0]]
-    
     else:
         tr_transformed_netmats = train_netmat
         val_transformed_netmats = validation_netmat
@@ -430,7 +441,7 @@ def fcn_prep_data_get_loaders(train_netmat, train_surface, validation_netmat, va
     val_dataset = torch.utils.data.TensorDataset(torch.from_numpy(normalized_val_surface).float(), torch.from_numpy((val_netmat_np)).float())
     val_loader = torch.utils.data.DataLoader(val_dataset, batch_size = b_sz, shuffle=True, num_workers=10)
 
-    return train_loader, val_loader, mean_train_netmat
+    return train_loader, val_loader, mean_train_netmat, train_subjects_to_keep, validation_subjects_to_keep
 
 def fcn_prep_swintrans_data_get_loaders(train_netmat, train_surface, validation_netmat, validation_surface, parcellation_N, netmat_prep_choice=None, b_sz=32, padding=50, encdec=True, write_fpath=''):
     '''

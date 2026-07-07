@@ -14,23 +14,68 @@ import glob
 import argparse
 import yaml
 
-def plot_training_losses(ax, data, data_val, validation_step=1, err=int, err_val=int, loss=str, title_str=str):
-                xvals_consecutive = np.arange(0,len(data),1)
-                make_data_np = np.asarray(data)
-                # make_data_val_np = np.asarray(data_val)
+# def plot_training_losses(ax, data, data_val, validation_step=1, err=int, err_val=int, loss=str, title_str=str):
+#                 xvals_consecutive = np.arange(0,len(data),1)
+#                 make_data_np = np.asarray(data)
+#                 # make_data_val_np = np.asarray(data_val)
+#                 # plot train
+#                 ax.plot(xvals_consecutive, make_data_np, marker='.', linestyle='-', label="Train")
+#                 # ax.fill_between(xvals_consecutive, make_data_np-err, make_data_np+err) #adding std across batcehs per epoch
+
+#                 # plot validation
+#                 if data_val is not None:
+#                     ax.plot(range(0, len(data_val)*validation_step, validation_step), data_val, color='red', label="Validation",  alpha=0.5)
+#                 # ax.fill_between(range(0, len(data_val)*validation_step, validation_step), make_data_val_np-err_val, make_data_val_np+err_val)
+
+#                 ax.set_xlabel('Epoch')
+#                 ax.set_ylabel(loss)
+#                 # ax.set_title(title_str)
+#                 ax.grid(True)
+def plot_training_losses(ax, data, data_val, validation_step=1, err=None,
+                         err_val=None, loss=str, title_str=str,given_ax=None,given_yticks=None, log_flag: bool=False):
+                xvals_consecutive = np.arange(1,len(data),1)
+                make_data_np = np.asarray(data)[1:]
+                df = pd.DataFrame({
+                     "epochs":  xvals_consecutive,
+                     "data_y": make_data_np
+                })
+
                 # plot train
                 ax.plot(xvals_consecutive, make_data_np, marker='.', linestyle='-', label="Train")
-                # ax.fill_between(xvals_consecutive, make_data_np-err, make_data_np+err) #adding std across batcehs per epoch
+                # ax = sns.lineplot(df, x="epochs", y="data_y",ax=given_ax, legend="full")
+                # sns.move_legend(ax, "lower center", ncol=2, title=None, frameon=False, bbox_to_anchor=(0.5,1))
+                if err is not None:
+                    err=err[1:]
+                    ax.fill_between(xvals_consecutive, make_data_np-err, make_data_np+err) #adding std across batcehs per epoch
 
                 # plot validation
                 if data_val is not None:
+                    make_data_val_np = np.asarray(data_val)[1:]
+                    data_val = data_val[1:]
+                    df["val_y"] =  make_data_val_np
                     ax.plot(range(0, len(data_val)*validation_step, validation_step), data_val, color='red', label="Validation",  alpha=0.5)
-                # ax.fill_between(range(0, len(data_val)*validation_step, validation_step), make_data_val_np-err_val, make_data_val_np+err_val)
+                    # sns.lineplot(df, x="epochs", y="val_y",ax=given_ax,legend="full")
+                    if err_val is not None:
+                        err_val=err_val#[1:101]
+                        ax.fill_between(range(0, len(data_val)*validation_step, validation_step), make_data_val_np-err_val, make_data_val_np+err_val)
 
                 ax.set_xlabel('Epoch')
                 ax.set_ylabel(loss)
                 # ax.set_title(title_str)
-                ax.grid(True)
+                # ax.grid(True)
+                for axii in ['bottom', 'left']:
+                    ax.spines[axii].set_linewidth(5)
+                    ax.spines[axii].set_color('0.2')
+                    ax.spines['top'].set_visible(False)
+                    ax.spines['right'].set_visible(False)
+                ax.set_xticks([1, 25, 50, 75, 100])
+                # ax.legend()
+                ax.legend(ncol=2, bbox_to_anchor=(0.25, 1),loc='lower left', fontsize='small')
+                # ax.legend({"Train","","Validation"}, loc="upper right")
+                if given_yticks is not None:
+                    ax.set_yticks(given_yticks)
+                if log_flag is True:
+                    ax.set_yscale('log')
                 
 def whole_model_arch(config):
     # for later data viz
@@ -56,6 +101,7 @@ def whole_model_arch(config):
     val_step = 1 #5 or 1, depends. 
     model_type = config['data']['model_type'] #model_output_names[chosen_one] # chosen index
     from_parcellation = config['data']['from_parcellation']
+    parcellation_corr_type = config['training']['parcellation_corr_type']
 
     if translation == "ICAd15_ICAd15": #over ride in this case
         ica_reconstuction = True
@@ -196,26 +242,22 @@ def whole_model_arch(config):
                 continue
             print(f"Train shapes: {train_truth_holder.shape} (Target)  {train_pred_holder.shape} (Pred)")
 
-            
-            ### OLD BELOW
-            # # train_mean_flatten_pred = np.mean(train_pred_holder, axis=0)
-            # train_mean_flatten_true = np.mean(train_truth_holder, axis=0, keepdims=True) # mean across all vals even across channel
-            # test_mean_flatten_true = np.mean(test_truth_holder, axis=0, keepdims=True)
-            # # also get predicted values
-            # train_mean_flatten_pred = np.mean(train_pred_holder, axis=0, keepdims=True)
-            # test_mean_flatten_pred = np.mean(test_pred_holder, axis=0, keepdims=True)
-            # print(test_mean_flatten_pred)
             ### NEW BELOW
             if "demean" in version: # if version is already demeaned, need to get actual MEAN from original data
                 print("DATA already demeaned and predicted as such. For original versions, need to get unprep raw netmat data to get means.")
                 hemi_cond="1L"
+                print(f"\n\n check viz path translation:{translation}-->{scratch_path}/NeuroTranslate/brain_reps_datasets/{datasets}/maps_and_netmats/topo2schaeferd{from_parcellation}_{parcellation_corr_type} \n\n")
                 if translation == "ICAd15_glasserd360":
-                    train_netmat_np = np.load(f"{scratch_path}/NeuroTranslate/brain_reps_datasets/{datasets}/glasser_mats/netmat_d{from_parcellation}/{hemi_cond}_train_netmat_clean.npy")
+                    train_netmat_np = np.load(f"{scratch_path}/NeuroTranslate/brain_reps_datasets/{datasets}/maps_and_netmats/topo2glasserd360_{parcellation_corr_type}/train_{hemi_cond}_vecnetmat_uppertri.npy")
                 elif "ICAd15_sch" in translation: #if its a ICA to schaefer translation
-                    train_netmat_np = np.load(f"{scratch_path}/NeuroTranslate/brain_reps_datasets/{datasets}/schaefer_mats/netmat_d{from_parcellation}/{hemi_cond}_train_netmat_clean.npy")
-                elif "INFOMAP" in translation: #if its an infomap-->parcellation translation
-                    train_netmat_np = np.load(f"{scratch_path}/NeuroTranslate/brain_reps_datasets/{datasets}/maps_and_netmats/top2schf{from_parcellation}/train_vecnetmat_uppertri.npy")
-                # train_surf_np = np.load(f"{scratch_path}/NeuroTranslate/brain_reps_datasets/{datasets}/ICA_maps/ICAd15_ico02/{hemi_cond}_train_surf.npy")
+                    train_netmat_np = np.load(f"{scratch_path}/NeuroTranslate/brain_reps_datasets/{datasets}/maps_and_netmats/topo2schaeferd{from_parcellation}_{parcellation_corr_type}/train_{hemi_cond}_vecnetmat_uppertri.npy")
+                elif "INFOMAPd20_schf" in translation: #if its an infomap-->parcellation translation
+                    train_netmat_np = np.load(f"{scratch_path}/NeuroTranslate/brain_reps_datasets/{datasets}/maps_and_netmats/topo2schaeferd{from_parcellation}_{parcellation_corr_type}/train_{hemi_cond}_vecnetmat_uppertri.npy")
+                elif translation == "ICAd15_ICAnetmatd15":
+                    train_netmat_np = np.load(f"{scratch_path}/NeuroTranslate/brain_reps_datasets/{datasets}/maps_and_netmats/topo2toponetmat_{parcellation_corr_type}/train_{hemi_cond}_vecnetmat_uppertri.npy")
+                elif translation == "INFOMAPd20_INFOMAPnetmatd20":
+                    train_netmat_np = np.load(f"{scratch_path}/NeuroTranslate/brain_reps_datasets/{datasets}/maps_and_netmats/topo2toponetmat_{parcellation_corr_type}/train_{hemi_cond}_vecnetmat_uppertri.npy")
+                
                 print(f'Loaded in TRAIN. They have shapes: {train_netmat_np.shape} respectively.')
 
                 # get the same for test
@@ -232,11 +274,15 @@ def whole_model_arch(config):
                     print(f'OUT OF SAMPLE Loaded in TEST. They have shapes: {te_netmat_np.shape}.')
                 else:
                     if translation == "ICAd15_glasserd360":
-                        te_netmat_np = np.load(f"{scratch_path}/NeuroTranslate/brain_reps_datasets/ABCD/glasser_mats/netmat_d{from_parcellation}/{hemi_cond}_test_netmat_clean.npy")
+                        te_netmat_np = np.load(f"{scratch_path}/NeuroTranslate/brain_reps_datasets/{datasets}/maps_and_netmats/topo2glasserd360_{parcellation_corr_type}/test_{hemi_cond}_vecnetmat_uppertri.npy")
                     elif "ICAd15_sch" in translation:                       
-                        te_netmat_np = np.load(f"{scratch_path}/NeuroTranslate/brain_reps_datasets/{datasets}/schaefer_mats/netmat_d{from_parcellation}/{hemi_cond}_test_netmat_clean.npy")
-                    elif "INFOMAP" in translation: #if its an infomap-->parcellation translation
-                        te_netmat_np = np.load(f"{scratch_path}/NeuroTranslate/brain_reps_datasets/{datasets}/maps_and_netmats/top2schf{from_parcellation}/test_vecnetmat_uppertri.npy")
+                        te_netmat_np = np.load(f"{scratch_path}/NeuroTranslate/brain_reps_datasets/{datasets}/maps_and_netmats/topo2schaeferd{from_parcellation}_{parcellation_corr_type}/test_{hemi_cond}_vecnetmat_uppertri.npy")
+                    elif "INFOMAPd20_schf" in translation: #if its an infomap-->parcellation translation
+                        te_netmat_np = np.load(f"{scratch_path}/NeuroTranslate/brain_reps_datasets/{datasets}/maps_and_netmats/topo2schaeferd{from_parcellation}_{parcellation_corr_type}/test_{hemi_cond}_vecnetmat_uppertri.npy")
+                    elif translation == "ICAd15_ICAnetmatd15":
+                        te_netmat_np = np.load(f"{scratch_path}/NeuroTranslate/brain_reps_datasets/{datasets}/maps_and_netmats/topo2toponetmat_{parcellation_corr_type}/test_{hemi_cond}_vecnetmat_uppertri.npy")
+                    elif translation == "INFOMAPd20_INFOMAPnetmatd20":
+                        te_netmat_np = np.load(f"{scratch_path}/NeuroTranslate/brain_reps_datasets/{datasets}/maps_and_netmats/topo2toponetmat_{parcellation_corr_type}/test_{hemi_cond}_vecnetmat_uppertri.npy")
 
                 print(f'Loaded in TEST. They have shapes: {te_netmat_np.shape} respectively.')
 

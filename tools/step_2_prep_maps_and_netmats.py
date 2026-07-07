@@ -1,22 +1,3 @@
-# %%
-'''
-To run this shole jupyter notebook as a python script follow this:
-
-(1) activate conda environemt
-(2) go to where this notebook is located in your computer
-(3) use `python` to enter python with in your shell/terminal
-(4) follow the above syntax
-
-from json import load
-filename='step_2_prep_maps_and_netmats.ipynb'
-with open(filename) as fp:
-    nb = load(fp)
-
-for cell in nb['cells']:
-    if cell['cell_type'] == 'code':
-        source = ''.join(line for line in cell['source'] if not line.startswith('%'))
-        exec(source, globals(), locals())
-'''
 
 def main(config):
     if "/Users/snaranjo" in os.getcwd():
@@ -28,9 +9,8 @@ def main(config):
     sub_ico = config['resolution']['sub_ico']
     dataset = config['data']['dataset']
     parcellation_name=config['data']['parcellation_name']
-    # translation = 'INFOMAPd20_schfd100' #'ICAd15_schfd100'
     parcellation_size=config['data']['parcellation_nodes']
-    parcellation_type='full'
+    parcellation_type=config['data']['parcellation_type']
     sub_ids_path=config['data']['sub_ids_path']
     netmats_paths=config['data']['netmats_paths']
     patch_indeces_path=config['data']['patch_indeces_path']
@@ -39,8 +19,12 @@ def main(config):
     num_patches=config['sub_ico_{}'.format(sub_ico)]['num_patches'] # sub_ico_2
     path_to_data=config['data']['path_to_data']
     path_to_subject_lists=config['data']['path_to_subject_lists']
-    skipped_subject_path=config['data']['skipped_subject_path']
-    output_maps_netmats_path=config['data']['output_maps_netmats_path']
+    skipped_subject_path=config['data']['skipped_subject_path'].format(dataset)
+    if not os.path.exists(skipped_subject_path):
+        os.makedirs(skipped_subject_path)
+    output_maps_netmats_path=config['data']['output_maps_netmats_path'].format(parcellation_name,parcellation_size,parcellation_type)
+    output_fornetmats_from_topography=config['data']['output_fornetmats_from_topography'].format(parcellation_type)
+    type_of_netmat=config['data']['type_of_netmat']
 
     # helper functions
     def fcn_generate_subject_split(single_df: pd.DataFrame, twins_df: pd.DataFrame, triplets_df: pd.DataFrame, train_split_portion:float=0.8, random_seed: int=123):
@@ -192,7 +176,7 @@ def main(config):
     print('#'*30)
 
     # Get meshes and paired netmats
-    ids = pd.read_csv(f"{sub_ids_path}/neurotranslate_abcd_subject_list.txt", sep=' ', header=None)[0].values.tolist() #reads all subjects, should be the train/val/test split.
+    ids = pd.read_csv(sub_ids_path, sep=' ', header=None)[0].values.tolist() #reads all subjects, should be the train/val/test split.
     print(f"Number of subjects for prep is {len(ids)}")
     # ids = ids[:2]
 
@@ -210,79 +194,103 @@ def main(config):
 
     #making sure everyone has a mesh is most important so lets do that then pair them with ther respective netmats
     data = [] # list of numpy arrays each is a numpy array version of the shape.gii info
-    netmat_data_list=[]
+    netmat_data=[]
     print(f'Dataset is {dataset}')
     subject_list_skipped=[]
     netmat_subject_list_skipped=[]
-    # usable_IDs_total=[]
-    usable_mesh_IDs=[]
+    non_usable_IDs =[]
     # usable_netmat_IDs=[]
     if chosen_hemi == '2LR':
         print("Not ready yet. Needs fixing. Will raise error")
         raise ValueError('Error from chosen hemisphere.')
     
+    if chosen_hemi == '1L':
+        print('LEFT hemisphere was chosen.')
+        hemisphere_chosen='L'
+    elif chosen_hemi == '1R':
+        print('RIGHT hemisphere was chosen.')
+        hemisphere_chosen='R'
+        
     # indeces for netmats later, so no need to compute everytime. Should be based on parcellation size and only upper triangle
-    lr, lc = np.triu_indices(parcellation_size, k=1) #only upper triangle, ignore diagonal
+    lr, lc = np.tril_indices(parcellation_size, k=-1) #only lower triangle, ignore diagonal
     for i, id in enumerate(ids): # reads in actual id num with 'id' inside the pandas column from the read csv, see above ids variable
-        if chosen_hemi == '1L':
-            print('LEFT hemisphere was chosen.')
-            hemisphere_chosen='L'
-        elif chosen_hemi == '1R':
-            print('RIGHT hemisphere was chosen.')
-            hemisphere_chosen='R'
+        if dataset == "infomap_prior_ABCDdr":
+            # maps=20
+            filename=f'{path_to_data}/resamp_sub-{id}.{hemisphere_chosen}.shape.gii'
+        elif dataset == "ABCD":
+            # maps=15
+            filename=f'{path_to_data}/resamp_NDARINV{id}.{hemisphere_chosen}.shape.gii'
+        else:
+            raise ValueError(f"Dataset {dataset} not recognized.")
 
-        filename=f'{path_to_data}/resamp_sub-{id}.{hemisphere_chosen}.shape.gii'
         if not os.path.isfile(filename):
             print(f"sub {id}/{i} does not have mesh file.")
             subject_list_skipped.append(i)
-            get_mesh_data=np.zeros((20,40962)) #nothing tmp element
+            non_usable_IDs.append(id)
+            get_mesh_data=np.zeros((20,40962)) #nothing tmp element, used to be 20 for maps but made into 1 might cause error when made into array later
         else:
             get_mesh_data=nb.load(filename).agg_data()
-            usable_mesh_IDs.append(id)
-            print(f"mesh shape: {np.array(get_mesh_data).shape}")
-            # print(f'sub {id}/{i} doesnt have mesh, skipping.')
-            # subject_list_skipped.append(i)
-            # passed so loaded well and can be part of list
+            # print(f"mesh shape: {np.array(get_mesh_data).shape}")
+            
         data.append(np.array(get_mesh_data))
-        # same for netmats         
-        filename=f"{path_to_netmat_specific}/NDARINV{id}.csv"
-        if not os.path.isfile(filename):
-            print(f'sub {id}/{i} doesnt have netmat, skipping.')
-            netmat_subject_list_skipped.append(i)
-            vec_netmat=np.zeros((4950)).squeeze()
-        else:
-            get_sub_netmat=pd.read_csv(filename, header=None).to_numpy()
-            # passed so loaded well and can be part of list
-            vec_netmat = get_sub_netmat[lr,lc]
-            print(f"netmatshape triangle: {vec_netmat.shape}")
-            # usable_netmat_IDs.append(id)
-        # save data
-        netmat_data_list.append(vec_netmat)
+        # same for netmats      
+        if type_of_netmat == "connectome":   
+            filename=f"{path_to_netmat_specific}/NDARINV{id}.csv"
+            if not os.path.isfile(filename):
+                print(f'sub {id}/{i} doesnt have netmat.')
+                netmat_subject_list_skipped.append(i)
+                non_usable_IDs.append(id)
+                vec_netmat=np.zeros((4950)).squeeze()
+            else:
+                get_sub_netmat=pd.read_csv(filename, header=None).to_numpy()
+                # passed so loaded well and can be part of list
+                vec_netmat = get_sub_netmat[lr,lc]
+                # print(f"netmatshape triangle: {vec_netmat.shape}")
+                # usable_netmat_IDs.append(id)
+        elif type_of_netmat == "topography_maps": #netmats from ICA or INFOMAP spatial components
+            output_maps_netmats_path = output_fornetmats_from_topography # over write it
+            path_to_netmat_specific = config["data"]["netmats_paths_for_spatial_versions"].format(parcellation_type) #overwrite
+            filename=f"{path_to_netmat_specific}/NDARINV{id}_ICA_netmat.npy" if dataset == "ABCD" else f"{path_to_netmat_specific}/{id}_INFOMAP_netmat.npy"
+            if not os.path.isfile(filename):
+                print(f'sub {id}/{i} doesnt have netmat.')
+                netmat_subject_list_skipped.append(i)
+                non_usable_IDs.append(id)
+                vec_netmat=np.zeros((190)).squeeze()
+            else:
+                vec_netmat=np.load(filename)# already lower triangle
 
-        if i%500==0: #every 300 subjects
-            print(f'Done matching mesh with netmat for: {id},{i}')
+        # save data
+        netmat_data.append(vec_netmat)
+
+        if i%100==0: #every 300 subjects
+            print(f'Done matching mesh with netmat for: {id}/{i}')
             # from sanity checks, I see now that our data values are dim C x TS, our in our case inputdim x TS for each vertex in the sphere
 
-    assert len(data) == len(netmat_data_list), "Neet to make sure that same amount of surface data and netmats! Soemthing went wrong here."
+    assert len(data) == len(netmat_data), "Neet to make sure that same amount of surface data and netmats! Soemthing went wrong here."
+    #get usable IDs unique
+    non_usable_IDs_unique = list(dict.fromkeys(non_usable_IDs))
+    print(f"NON usable IDs unique:{len(non_usable_IDs_unique)}")
+    usable_IDs_unique_mask = ~np.isin(ids, non_usable_IDs_unique) #of all IDs which are "1" not usable and which are "0" usable
+    ids_np = np.asarray(ids)
+    usable_IDs_unique = list(ids_np[usable_IDs_unique_mask])
+    print(f"YES usable IDs unique:{len(usable_IDs_unique)}")
 
     # save list of subject skipped in case needed for the future
     # now that we have data for all subjects
-    subjects_to_remove=subject_list_skipped+netmat_subject_list_skipped
-    # usable_IDs_total=usable_mesh_IDs#+usable_netmat_IDs
     data=np.asarray(data)
-    data = np.delete(data, subjects_to_remove, axis=0)
-    assert len(usable_mesh_IDs) == data.shape[0], "Something went wrong in saving usable subjects and mesh data. Should be equal."
-    netmat_data=np.asarray(netmat_data_list)
+    netmat_data=np.asarray(netmat_data)
+
+    subjects_to_remove=subject_list_skipped+netmat_subject_list_skipped
+    data=np.delete(data, subjects_to_remove, axis=0)
     netmat_data = np.delete(netmat_data, subjects_to_remove, axis=0) #subjects with no mesh data
     assert len(data) == len(netmat_data),"Mesh data and netmat data must match (same subject). Some error occurred."
     print(f"Mesh data ready shape is {data.shape} and netmats are {netmat_data.shape}")
     if len(subjects_to_remove) > 0:
         subjects_skipped_nomesh = pd.DataFrame({
             "subIDs_remove": subjects_to_remove,
-            "missing_type": "mesh"*len(subject_list_skipped) + "netmat"*len(netmat_subject_list_skipped)
+            "missing_type": ["mesh"]*len(subject_list_skipped) + ["netmat"]*len(netmat_subject_list_skipped)
         })
-        subjects_skipped_nomesh.to_csv(f"{skipped_subject_path}/subjects_skipped_nomesh_nomat_hemi{hemisphere_chosen}.csv")
-
+        subjects_skipped_nomesh.to_csv(f"{skipped_subject_path}/subjects_skipped_nomesh_nomat_1{hemisphere_chosen}_{type_of_netmat}_{parcellation_name}_{parcellation_size}_{parcellation_type}.csv")
 
     # %%
     def fcn_split_datas(data: np.ndarray, netmat_data: np.ndarray, path_to_subject_lists: str, subject_ids: list):
@@ -293,7 +301,7 @@ def main(config):
         train_match = np.isin(subject_ids, train_ids)
         validation_match = np.isin(subject_ids, validation_ids)
         test_match = np.isin(subject_ids, test_ids) #TRUE where test subjects are
-
+        print(f"Count for each sample. Mask matches are as follows: \nTrain:{train_match.sum()} \nValidation:{validation_match.sum()} \nTest:{test_match.sum()}")
         # index with above masks for ease
         data_train=data[train_match]
         data_validation=data[validation_match]
@@ -301,6 +309,20 @@ def main(config):
         netmat_data_train=netmat_data[train_match]
         netmat_data_validation=netmat_data[validation_match]
         netmat_data_test=netmat_data[test_match]
+        print(f"Post subject ID matching. NetMats \nTrain:{netmat_data_train.shape} Validation:{netmat_data_validation.shape} Test:{netmat_data_test.shape}")
+
+        #also make df and save based on subejcts that are good to use but ordered on group TRAIN/VAL/TEST
+        IDs_pass_datacheck = np.asarray(subject_ids)
+    
+        train_match = IDs_pass_datacheck[np.isin(IDs_pass_datacheck, train_ids)] #get train IDs
+        validation_match = IDs_pass_datacheck[np.isin(IDs_pass_datacheck, validation_ids)]
+        test_match = IDs_pass_datacheck[np.isin(IDs_pass_datacheck, test_ids)]
+        full_IDs_train_val_test = pd.DataFrame({
+            "sub_IDs": np.concatenate((train_match,validation_match,test_match), axis=0),
+            "group": ["train"]*len(train_match)+["validation"]*len(validation_match)+["test"]*len(test_match)
+        })
+        full_IDs_train_val_test.to_csv(f"{skipped_subject_path}/full_IDs_train_val_test_1{hemisphere_chosen}_{type_of_netmat}_{parcellation_name}_{parcellation_size}_{parcellation_type}.csv")
+
         return data_train, data_validation, data_test, netmat_data_train, netmat_data_validation, netmat_data_test
 
     indices_mesh_triangles=pd.read_csv(f'{patch_indeces_path}/triangle_indices_ico_{ico}_sub_ico_{sub_ico}.csv')
@@ -311,7 +333,7 @@ def main(config):
         print('\nBecause one hemisphere chosen, data is num_subj C P V')
         data_ico_lowres = np.zeros((num_subjects, num_channels, num_patches, num_vertices))
         print(f'ICO-{sub_ico} data shape: {data_ico_lowres.shape}')
-        for i, id in enumerate(usable_mesh_IDs): # subjects?
+        for i, id in enumerate(usable_IDs_unique): # subjects?
             if i%500==0:
                 print('Preping patches for sub: {}'.format(id))
             for j in range(num_patches): # for each columns
@@ -321,6 +343,7 @@ def main(config):
 
     print('#'*30)
     print('#Saving: data')
+    print(f'#SAVING TO: {output_maps_netmats_path}')
     print('#'*30)
     del data
 
@@ -329,8 +352,8 @@ def main(config):
     data_test, 
     netmat_data_train, 
     netmat_data_validation, 
-    netmat_data_test) = fcn_split_datas(data_ico_lowres, netmat_data, path_to_subject_lists, usable_mesh_IDs)
-    # print(data_train.shape, data_validation.shape, data_test.shape) #correct shapes
+    netmat_data_test) = fcn_split_datas(data_ico_lowres, netmat_data, path_to_subject_lists, usable_IDs_unique)
+    print(f"Surfaces T/V/T: \n{data_train.shape} {data_validation.shape} {data_test.shape}") #correct shapes
 
     if not os.path.isdir(output_maps_netmats_path):
         os.makedirs(output_maps_netmats_path)
@@ -350,13 +373,13 @@ def main(config):
 
     # no need to be in if statement b/c L and R use same netmats per subject
     # same for netmats
-    filename = os.path.join(f"{output_maps_netmats_path}/train_vecnetmat_uppertri.npy")
+    filename = os.path.join(f"{output_maps_netmats_path}/train_1{hemisphere_chosen}_vecnetmat_uppertri.npy")
     np.save(filename,netmat_data_train)
 
-    filename = os.path.join(f"{output_maps_netmats_path}/validation_vecnetmat_uppertri.npy")
+    filename = os.path.join(f"{output_maps_netmats_path}/validation_1{hemisphere_chosen}_vecnetmat_uppertri.npy")
     np.save(filename,netmat_data_validation)
 
-    filename = os.path.join(f"{output_maps_netmats_path}/test_vecnetmat_uppertri.npy")
+    filename = os.path.join(f"{output_maps_netmats_path}/test_1{hemisphere_chosen}_vecnetmat_uppertri.npy")
     np.save(filename,netmat_data_test)
 
 if __name__ == '__main__':

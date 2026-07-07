@@ -5,31 +5,22 @@ resolution:
   sub_ico: 2
 
 data:
-  dataset: ABCD_v5 #ABCD, HCPYA, HCPYA_ABCDdr, infomap_prior_ABCDdr
-  parcellation_name: schaefer 
-  parcellation_nodes: 100
-  parcellation_type: full #full, partial correlation mats
-  sub_ids_path: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/utils/dr_scripts
+  dataset: ABCD #ABCD, HCPYA, HCPYA_ABCDdr, infomap_prior_ABCDdr
+  parcellation_name: ICAnetmat #schaefer, glasser, ICAnetmat
+  parcellation_nodes: 15
+  parcellation_type: partial #full, partial correlation mats
+  sub_ids_path: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/utils/dr_scripts/neurotranslate_abcd_subject_list.txt
   netmats_paths: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/ABCD_NetMats
+  netmats_paths_for_spatial_versions: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/brain_reps_datasets/ABCD/maps_and_netmats/ICA_netmats/individual_netmats_{}
   patch_indeces_path: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/patch_extraction
   hemisphere: 1L #1R
-  path_to_data: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/brain_reps_datasets/infomap_prior_ABCDdr/infomap_dr_maps/infomap_d20_ico06 #ico res
+  path_to_data: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/brain_reps_datasets/ABCD/ICA_maps/ICAd15_ico06/
   path_to_subject_lists: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/utils/subj_ids
-  skipped_subject_path: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/utils/subj_ids
-  output_maps_netmats_path: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/brain_reps_datasets/infomap_prior_ABCDdr/maps_and_netmats/top2schf100
-  # data_path: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/brain_reps_datasets/ABCD/ICA_maps/ICAd15_ico06
-  # patches_path: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/patch_extraction
-  # translation: ICAd15_schfd100 #scan_age #birth_age -- adapted, but we want to change to netmat pred
-  # split: train #train #val/validation # or test
-  # channels: 20
-  # fs_data_path: d15_fs_LR # needed for HCPYA for now
-  # norm_flag: False
-  # unet_arch: False
-
-# output:
-#   folder: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/brain_reps_datasets/ABCD/ICA_maps/ICAd15_ico05
-#   output_folder_netmat: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/brain_reps_datasets/ABCD/schaefer_mats/netmat_d100
-
+  skipped_subject_path: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/utils/subj_ids/{}
+  output_maps_netmats_path: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/brain_reps_datasets/ABCD/maps_and_netmats/topo2{}d{}_{}
+  output_fornetmats_from_topography: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/brain_reps_datasets/ABCD/maps_and_netmats/topo2toponetmat_{}
+  type_of_netmat: topography_maps #connectome or topography_maps
+  
 sub_ico_1:
   num_patches: 80 
   num_vertices: 561 

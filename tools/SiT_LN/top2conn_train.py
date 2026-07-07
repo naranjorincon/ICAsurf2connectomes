@@ -64,17 +64,14 @@ def fcn_validate(model, val_loader, mean_train_label, device, VAE_flag, netmat_p
                 top_right_quad = np.split(split_half_horizontal[0], 2, axis = 1)[1]
                 orig_corr_val_list.append(np.diag(top_right_quad))
     
-    # print(f"List length: {len(demean_corr_val_list)} I think it should be batches?")
     across_sub_mae_mean = np.mean(mae_val_list) # mean across batches
     across_sub_mae_std = np.std(mae_val_list)
     across_sub_mse_mean = np.mean(mse_val_list)
     across_sub_mse_std = np.std(mse_val_list)
     # because of batching, some in the list are different size so make into whole array
     upto_n_minus1 = np.asarray(demean_corr_val_list[:-1]).squeeze() # all upto last item, do that seperate then concat
-    # print(f"upto_minus1_shape: {upto_n_minus1.shape}")
     upto_n_minus1 = upto_n_minus1.reshape(1, upto_n_minus1.shape[0]*upto_n_minus1.shape[1]) #vectorizes to 1xB*tril
     n_minus_1 = np.asarray(demean_corr_val_list[-1])[np.newaxis,:] 
-    # print(f"n_minus_1: {n_minus_1.shape}")
     val_corr_demean_flat = np.concatenate((upto_n_minus1,n_minus_1), axis=1) # add at end of col
     across_sub_corr_demean = np.mean(val_corr_demean_flat)
     across_sub_corr_demean_std = np.std(val_corr_demean_flat)
@@ -97,7 +94,7 @@ def whole_model_arch(config):
     netmat_prep_choice = config['training']['netmat_prep_choice']
     surf_prep_choice = config['training']['surf_prep_choice']
     dataset_choice = config['training']['dataset_choice']
-    bilateral_condition = config['training']['bilateral_condition'] # both hemispheres instead of 1
+    # bilateral_condition = config['training']['bilateral_condition'] # both hemispheres instead of 1
     channel_specific_condition = config['training']['channel_specific_condition']
     specific_channel = config['training']['specific_channel']
     specific_channel_end = config['training']['specific_channel_end']
@@ -110,30 +107,24 @@ def whole_model_arch(config):
         batch_size = batch_size // 4 #overfit tends to need smaller batch so that the script works fully. Dont belive me? Try. 
     parcellation_corr_type = config['training']['parcellation_corr_type']
     VAE_flag = config['training']['VAE_flag']
+    parcellation_name = config['data']['parcellation_name']
     from_parcellation = config['data']['from_parcellation']
     to_icamap = config['data']['to_icamap']
     translation= config['data']['translation']
     version = config['data']['version']
     model_type = config['data']['model_type']
-    # krak_mse_weight = config['transformer']['krak_mse_weight']
-    # krak_latent_weight = config['transformer']['krak_latent_weight']
-    # krak_corrEYE_weight = config['transformer']['krak_corrEYE_weight']
-    # rho_loss_weight = config['transformer']['rho_loss_weight']
     # get ico resolution
     try: #since this is a new thing added, putting this here so that previous yml files without it can run assuming they were done with ico02
         icores = config['data']['icores']
     except:
-        # write_to_file("YML file does not have ico resolution information. Defaulting to ico-02", filepath=write_fpath)
         icores="2"
-    # else:
-        # write_to_file(f"Using ico-{icores} surf data.", filepath=write_fpath)
 
     if flag_experiment_ICArecon:
         model_details = config['transformer']['model_details'] + f'_chnl{specific_channel}' # if YES specific channel, then per channel save model with that channel
-        write_fpath = config['logging']['sanity_file_pth'] + f'_ico-0{icores}' +  f'_chnl{specific_channel}' + '.print'
+        write_fpath = config['logging']['sanity_file_pth'].format(model_type, version, parcellation_name, from_parcellation) + f'_ico-0{icores}' +  f'_chnl{specific_channel}.print'
     else:
         model_details = config['transformer']['model_details'] # if not specicfic channel then save as normal
-        write_fpath = config['logging']['sanity_file_pth'] + f'_ico-0{icores}' + '.print'
+        write_fpath = config['logging']['sanity_file_pth'].format(model_type, version, parcellation_name, from_parcellation) + f'_ico-0{icores}.print'
 
     write_to_file(f"Using ICAd15_ico0{icores} surf data.", filepath=write_fpath)
     write_to_file(f"details are: {model_details}", filepath=write_fpath)
@@ -145,14 +136,13 @@ def whole_model_arch(config):
     TEST_FLAG = config['testing']['immediate_test_flag']
     te_batch_size = config['testing']['bs_test']
 
-    folder_to_save_model = f'/home/naranjorincon/neurotranslate/surf2netmat/logs/{translation}/{dataset_choice}/{model_type}/{version}'
+    model_save_path=config['logging']['model_save_path'] #/home/naranjorincon/neurotranslate/surf2netmat/logs
+    folder_to_save_model = f'{model_save_path}/{translation}/{dataset_choice}/{model_type}/{version}'
     folder_to_save_losses = f'{model_out_root}/{translation}/{dataset_choice}/{model_type}/{version}/{model_details}'
     # make necessary folders
     if not os.path.exists(folder_to_save_model):
-        # Create the directory
         os.makedirs(folder_to_save_model)
     if not os.path.exists(folder_to_save_losses):
-        # Create the directory
         os.makedirs(folder_to_save_losses)
 
     data_root_path = "/ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch"
@@ -165,107 +155,80 @@ def whole_model_arch(config):
         os.makedirs(folder_to_save_test)
 
     ############################################# LOAD IN NETMATS AND SURFACE MESHES #############################################
-    if bilateral_condition:
-        hemi_cond = "2LR"
-    else:
-        hemi_cond = config['training']['hemi_cond']
-
+    # if bilateral_condition:
+    hemi_cond = config['training']['hemi_cond']
+    bilateral_condition = config['training']['bilateral_condition']
     if dataset_choice == "HCPYA":
         if parcellation_corr_type == "full":
             train_netmat_np = np.load(f"{data_root_path}/surface-vision-transformers/data/ICAd15_schfd100/template/{hemi_cond}_train_labels.npy") 
             train_surf_np = np.load(f"{data_root_path}/surface-vision-transformers/data/ICAd15_schfd100/template/{hemi_cond}_train_data.npy")#[:, np.newaxis, channel_testing, :] 
-            write_to_file(f'Loaded in TRAIN. They have shapes: {train_netmat_np.shape} & {train_surf_np.shape} respectively.', filepath=write_fpath)
-            write_to_file(f"loading from:{hemi_cond}_train_netmat_clean.npy and {hemi_cond}_train_surf.npy", filepath=write_fpath)
-
             val_netmat_np = np.load(f"{data_root_path}/surface-vision-transformers/data/ICAd15_schfd100/template/{hemi_cond}_validation_labels.npy") 
             val_surf_np = np.load(f"{data_root_path}/surface-vision-transformers/data/ICAd15_schfd100/template/{hemi_cond}_validation_data.npy")#[:, np.newaxis, channel_testing, :]
-            write_to_file(f'Loaded in VALIDATION. They have shapes: {val_netmat_np.shape} & {val_surf_np.shape} respectively.', filepath=write_fpath)
-
             if TEST_FLAG:
                 te_netmat_np = np.load(f"{data_root_path}/surface-vision-transformers/data/ICAd15_schfd100/template/{hemi_cond}_test_labels.npy")
                 te_surf_np = np.load(f"{data_root_path}/surface-vision-transformers/data/ICAd15_schfd100/template/{hemi_cond}_test_data.npy")#[:, np.newaxis, channel_testing, :]
-                write_to_file(f'Loaded in TEST. They have shapes: {te_netmat_np.shape} & {te_surf_np.shape} respectively.', filepath=write_fpath)
-
     elif dataset_choice == "ABCD":
-        if parcellation_corr_type == "full":
-            if translation == "ICAd15_glasserd360":
-                train_netmat_np = np.load(f"{data_root_path}/NeuroTranslate/brain_reps_datasets/{dataset_choice}/glasser_mats/netmat_d{from_parcellation}/{hemi_cond}_train_netmat_clean.npy")
-                train_surf_np = np.load(f"{data_root_path}/NeuroTranslate/brain_reps_datasets/{dataset_choice}/ICA_maps/glasser/ICAd15_ico0{icores}/{hemi_cond}_train_surf.npy")#[:, np.newaxis, channel_testing, :] 
-                write_to_file(f'Loaded in TRAIN. They have shapes: {train_netmat_np.shape} & {train_surf_np.shape} respectively.', filepath=write_fpath)
-                write_to_file(f"loading from:{hemi_cond}_train_netmat_clean.npy and {hemi_cond}_train_surf.npy", filepath=write_fpath)
-                
-                val_netmat_np = np.load(f"{data_root_path}/NeuroTranslate/brain_reps_datasets/{dataset_choice}/glasser_mats/netmat_d{from_parcellation}/{hemi_cond}_val_netmat_clean.npy")
-                val_surf_np = np.load(f"{data_root_path}/NeuroTranslate/brain_reps_datasets/{dataset_choice}/ICA_maps/glasser/ICAd15_ico0{icores}/{hemi_cond}_val_surf.npy")#[:, np.newaxis, channel_testing, :]
-                write_to_file(f'Loaded in VALIDATION. They have shapes: {val_netmat_np.shape} & {val_surf_np.shape} respectively.', filepath=write_fpath)
-
-                if TEST_FLAG:
-                    te_netmat_np = np.load(f"{data_root_path}/NeuroTranslate/brain_reps_datasets/{dataset_choice}/glasser_mats/netmat_d{from_parcellation}/{hemi_cond}_test_netmat_clean.npy")
-                    te_surf_np = np.load(f"{data_root_path}/NeuroTranslate/brain_reps_datasets/{dataset_choice}/ICA_maps/glasser/ICAd15_ico0{icores}/{hemi_cond}_test_surf.npy")#[:, np.newaxis, channel_testing, :]
-                    write_to_file(f'Loaded in TEST. They have shapes: {te_netmat_np.shape} & {te_surf_np.shape} respectively.', filepath=write_fpath)
-
-            else:    
-                train_netmat_np = np.load(f"{data_root_path}/NeuroTranslate/brain_reps_datasets/{dataset_choice}/schaefer_mats/netmat_d{from_parcellation}/{hemi_cond}_train_netmat_clean.npy")
-                train_surf_np = np.load(f"{data_root_path}/NeuroTranslate/brain_reps_datasets/{dataset_choice}/ICA_maps/ICAd15_ico0{icores}/{hemi_cond}_train_surf.npy")#[:, np.newaxis, channel_testing, :] 
-                write_to_file(f'Loaded in TRAIN. They have shapes: {train_netmat_np.shape} & {train_surf_np.shape} respectively.', filepath=write_fpath)
-                write_to_file(f"loading from:{hemi_cond}_train_netmat_clean.npy and {hemi_cond}_train_surf.npy", filepath=write_fpath)
-                
-                val_netmat_np = np.load(f"{data_root_path}/NeuroTranslate/brain_reps_datasets/{dataset_choice}/schaefer_mats/netmat_d{from_parcellation}/{hemi_cond}_val_netmat_clean.npy")
-                val_surf_np = np.load(f"{data_root_path}/NeuroTranslate/brain_reps_datasets/{dataset_choice}/ICA_maps/ICAd15_ico0{icores}/{hemi_cond}_val_surf.npy")#[:, np.newaxis, channel_testing, :]
-                write_to_file(f'Loaded in VALIDATION. They have shapes: {val_netmat_np.shape} & {val_surf_np.shape} respectively.', filepath=write_fpath)
-
-                if TEST_FLAG:
-                    te_netmat_np = np.load(f"{data_root_path}/NeuroTranslate/brain_reps_datasets/{dataset_choice}/schaefer_mats/netmat_d{from_parcellation}/{hemi_cond}_test_netmat_clean.npy")
-                    te_surf_np = np.load(f"{data_root_path}/NeuroTranslate/brain_reps_datasets/{dataset_choice}/ICA_maps/ICAd15_ico0{icores}/{hemi_cond}_test_surf.npy")#[:, np.newaxis, channel_testing, :]
-                    write_to_file(f'Loaded in TEST. They have shapes: {te_netmat_np.shape} & {te_surf_np.shape} respectively.', filepath=write_fpath)
-        elif parcellation_corr_type == "partial":
-            train_netmat_np = np.load(f"{data_root_path}/NeuroTranslate/brain_reps_datasets/{dataset_choice}/schaefer_mats/partialnetmat_d{from_parcellation}/train_netmat_clean.npy")
-            train_surf_np = np.load(f"{data_root_path}/NeuroTranslate/brain_reps_datasets/{dataset_choice}/ICA_maps/ICAd15_ico0{icores}/{hemi_cond}_train_surf.npy")#[:, np.newaxis, channel_testing, :] 
-            write_to_file(f'Loaded in TRAIN. They have shapes: {train_netmat_np.shape} & {train_surf_np.shape} respectively.', filepath=write_fpath)
-
-            val_netmat_np = np.load(f"{data_root_path}/NeuroTranslate/brain_reps_datasets/{dataset_choice}/schaefer_mats/partialnetmat_d{from_parcellation}/val_netmat_clean.npy")
-            val_surf_np = np.load(f"{data_root_path}/NeuroTranslate/brain_reps_datasets/{dataset_choice}/ICA_maps/ICAd15_ico0{icores}/{hemi_cond}_val_surf.npy")#[:, np.newaxis, channel_testing, :]
-            write_to_file(f'Loaded in VALIDATION. They have shapes: {val_netmat_np.shape} & {val_surf_np.shape} respectively.', filepath=write_fpath)
-
-            if TEST_FLAG:
-                te_netmat_np = np.load(f"{data_root_path}/NeuroTranslate/brain_reps_datasets/{dataset_choice}/schaefer_mats/partialnetmat_d{from_parcellation}/test_netmat_clean.npy")
-                te_surf_np = np.load(f"{data_root_path}/NeuroTranslate/brain_reps_datasets/{dataset_choice}/ICA_maps/ICAd15_ico0{icores}/{hemi_cond}_test_surf.npy")#[:, np.newaxis, channel_testing, :]
-                write_to_file(f'Loaded in TEST. They have shapes: {te_netmat_np.shape} & {te_surf_np.shape} respectively.', filepath=write_fpath)
-    elif dataset_choice == "infomap_prior_ABCDdr":
-        if parcellation_corr_type == "full":    
-            if translation == "INFOMAPd20_glasserd360":
-                train_netmat_np = np.load(f"{data_root_path}/NeuroTranslate/brain_reps_datasets/{dataset_choice}/maps_and_netmats/top2glass360/train_vecnetmat_uppertri.npy")
-                train_surf_np = np.load(f"{data_root_path}/NeuroTranslate/brain_reps_datasets/{dataset_choice}/maps_and_netmats/top2glass360/train_{hemi_cond}_surf.npy")
-                write_to_file(f'Loaded in TRAIN. They have shapes: {train_netmat_np.shape} & {train_surf_np.shape} respectively.', filepath=write_fpath)
-                val_netmat_np = np.load(f"{data_root_path}/NeuroTranslate/brain_reps_datasets/{dataset_choice}/maps_and_netmats/top2glass360/validation_vecnetmat_uppertri.npy")
-                val_surf_np = np.load(f"{data_root_path}/NeuroTranslate/brain_reps_datasets/{dataset_choice}/maps_and_netmats/top2glass360/validation_{hemi_cond}_surf.npy")
-                write_to_file(f'Loaded in VALIDATION. They have shapes: {val_netmat_np.shape} & {val_surf_np.shape} respectively.', filepath=write_fpath)
-                if TEST_FLAG is True:
-                    te_netmat_np = np.load(f"{data_root_path}/NeuroTranslate/brain_reps_datasets/{dataset_choice}/maps_and_netmats/top2glass360/test_vecnetmat_uppertri.npy")
-                    te_surf_np = np.load(f"{data_root_path}/NeuroTranslate/brain_reps_datasets/{dataset_choice}/maps_and_netmats/top2glass360/test_{hemi_cond}_surf.npy")
-                    write_to_file(f'Loaded in VALIDATION. They have shapes: {val_netmat_np.shape} & {val_surf_np.shape} respectively.', filepath=write_fpath)
-            else:     #translation == "INFOMAPd20_schaeferd100":
-                train_netmat_np = np.load(f"{data_root_path}/NeuroTranslate/brain_reps_datasets/{dataset_choice}/maps_and_netmats/top2schf{from_parcellation}/train_vecnetmat_uppertri.npy")
-                train_surf_np = np.load(f"{data_root_path}/NeuroTranslate/brain_reps_datasets/{dataset_choice}/maps_and_netmats/top2schf{from_parcellation}/train_{hemi_cond}_surf.npy")
-                write_to_file(f'Loaded in TRAIN. They have shapes: {train_netmat_np.shape} & {train_surf_np.shape} respectively.', filepath=write_fpath)
-                val_netmat_np = np.load(f"{data_root_path}/NeuroTranslate/brain_reps_datasets/{dataset_choice}/maps_and_netmats/top2schf{from_parcellation}/validation_vecnetmat_uppertri.npy")
-                val_surf_np = np.load(f"{data_root_path}/NeuroTranslate/brain_reps_datasets/{dataset_choice}/maps_and_netmats/top2schf{from_parcellation}/validation_{hemi_cond}_surf.npy")
-                write_to_file(f'Loaded in VALIDATION. They have shapes: {val_netmat_np.shape} & {val_surf_np.shape} respectively.', filepath=write_fpath)
-                if TEST_FLAG is True:
-                    te_netmat_np = np.load(f"{data_root_path}/NeuroTranslate/brain_reps_datasets/{dataset_choice}/maps_and_netmats/top2schf{from_parcellation}/test_vecnetmat_uppertri.npy")
-                    te_surf_np = np.load(f"{data_root_path}/NeuroTranslate/brain_reps_datasets/{dataset_choice}/maps_and_netmats/top2schf{from_parcellation}/test_{hemi_cond}_surf.npy")
-                    write_to_file(f'Loaded in VALIDATION. They have shapes: {val_netmat_np.shape} & {val_surf_np.shape} respectively.', filepath=write_fpath)
-        elif parcellation_corr_type == "partial":
-            train_netmat_np = np.load(f"{data_root_path}/NeuroTranslate/brain_reps_datasets/{dataset_choice}/maps_and_netmats/top2schf{from_parcellation}_partial/train_vecnetmat_uppertri.npy")
-            train_surf_np = np.load(f"{data_root_path}/NeuroTranslate/brain_reps_datasets/{dataset_choice}/maps_and_netmats/top2schf{from_parcellation}_partial/train_{hemi_cond}_surf.npy")
-            write_to_file(f'Loaded in TRAIN. They have shapes: {train_netmat_np.shape} & {train_surf_np.shape} respectively.', filepath=write_fpath)
-            val_netmat_np = np.load(f"{data_root_path}/NeuroTranslate/brain_reps_datasets/{dataset_choice}/maps_and_netmats/top2schf{from_parcellation}_partial/validation_vecnetmat_uppertri.npy")
-            val_surf_np = np.load(f"{data_root_path}/NeuroTranslate/brain_reps_datasets/{dataset_choice}/maps_and_netmats/top2schf{from_parcellation}_partial/validation_{hemi_cond}_surf.npy")
-            write_to_file(f'Loaded in VALIDATION. They have shapes: {val_netmat_np.shape} & {val_surf_np.shape} respectively.', filepath=write_fpath)
+        if translation == "ICAd15_glasserd360":
+            main_brainrep_data_path_root=f"{data_root_path}/NeuroTranslate/brain_reps_datasets/{dataset_choice}/maps_and_netmats/topo2glasserd360_{parcellation_corr_type}"
+        elif translation == "ICAd15_ICAnetmatd15":
+            main_brainrep_data_path_root=f"{data_root_path}/NeuroTranslate/brain_reps_datasets/{dataset_choice}/maps_and_netmats/topo2toponetmat_{parcellation_corr_type}"
+        else:     #translation == "INFOMAPd20_schaeferd100":
+            main_brainrep_data_path_root=f"{data_root_path}/NeuroTranslate/brain_reps_datasets/{dataset_choice}/maps_and_netmats/topo2schaeferd{from_parcellation}_{parcellation_corr_type}"
+        # based on above path chosen
+        train_netmat_np = np.load(f"{main_brainrep_data_path_root}/train_{hemi_cond}_vecnetmat_uppertri.npy")
+        train_surf_np = np.load(f"{main_brainrep_data_path_root}/train_{hemi_cond}_surf.npy")
+        val_netmat_np = np.load(f"{main_brainrep_data_path_root}/validation_{hemi_cond}_vecnetmat_uppertri.npy")
+        val_surf_np = np.load(f"{main_brainrep_data_path_root}/validation_{hemi_cond}_surf.npy")
+        if TEST_FLAG is True:
+            te_netmat_np = np.load(f"{main_brainrep_data_path_root}/test_{hemi_cond}_vecnetmat_uppertri.npy")
+            te_surf_np = np.load(f"{main_brainrep_data_path_root}/test_{hemi_cond}_surf.npy")
+        write_to_file(f'Loaded in TRAIN. They have shapes: {train_netmat_np.shape} & {train_surf_np.shape} respectively.', filepath=write_fpath)
+        write_to_file(f'Loaded in VALIDATION. They have shapes: {val_netmat_np.shape} & {val_surf_np.shape} respectively.', filepath=write_fpath)
+        write_to_file(f'Loaded in VALIDATION. They have shapes: {te_netmat_np.shape} & {te_surf_np.shape} respectively.', filepath=write_fpath)
+        
+        #2LR option
+        if bilateral_condition is True:
+            train_netmat_np_R = np.load(f"{main_brainrep_data_path_root}/train_1R_vecnetmat_uppertri.npy")
+            train_surf_np_R = np.load(f"{main_brainrep_data_path_root}/train_1R_surf.npy")
+            val_netmat_np_R = np.load(f"{main_brainrep_data_path_root}/validation_1R_vecnetmat_uppertri.npy")
+            val_surf_np_R = np.load(f"{main_brainrep_data_path_root}/validation_1R_surf.npy")
             if TEST_FLAG is True:
-                te_netmat_np = np.load(f"{data_root_path}/NeuroTranslate/brain_reps_datasets/{dataset_choice}/maps_and_netmats/top2schf{from_parcellation}_partial/test_vecnetmat_uppertri.npy")
-                te_surf_np = np.load(f"{data_root_path}/NeuroTranslate/brain_reps_datasets/{dataset_choice}/maps_and_netmats/top2schf{from_parcellation}_partial/test_{hemi_cond}_surf.npy")
-                write_to_file(f'Loaded in VALIDATION. They have shapes: {val_netmat_np.shape} & {val_surf_np.shape} respectively.', filepath=write_fpath)
-    
+                te_netmat_np_R = np.load(f"{main_brainrep_data_path_root}/test_1R_vecnetmat_uppertri.npy")
+                te_surf_np_R = np.load(f"{main_brainrep_data_path_root}/test_1R_surf.npy")
+
+            #concat them
+            train_netmat_np = np.concatenate((train_netmat_np,train_netmat_np_R),axis=0)
+            train_surf_np = np.concatenate((train_surf_np,train_surf_np_R),axis=0)
+            val_netmat_np = np.concatenate((val_netmat_np,val_netmat_np_R),axis=0)
+            val_surf_np = np.concatenate((val_surf_np,val_surf_np_R),axis=0)
+            if TEST_FLAG is True:
+                te_netmat_np = np.concatenate((te_netmat_np,te_netmat_np_R),axis=0)
+                te_surf_np = np.concatenate((te_surf_np,te_surf_np_R),axis=0)
+            
+            write_to_file('BILATERAL CONDITION IS TRUE. Loaded in R and concat such that its LLLLL...LRRR..R', filepath=write_fpath)
+            write_to_file(f'Loaded in TRAIN. They have shapes: {train_netmat_np.shape} & {train_surf_np.shape} respectively.', filepath=write_fpath)
+            write_to_file(f'Loaded in VALIDATION. They have shapes: {val_netmat_np.shape} & {val_surf_np.shape} respectively.', filepath=write_fpath)
+            write_to_file(f'Loaded in VALIDATION. They have shapes: {te_netmat_np.shape} & {te_surf_np.shape} respectively.', filepath=write_fpath)
+
+    elif dataset_choice == "infomap_prior_ABCDdr":
+        if translation == "INFOMAPd20_glasserd360":
+            main_brainrep_data_path_root=f"{data_root_path}/NeuroTranslate/brain_reps_datasets/{dataset_choice}/maps_and_netmats/topo2glasserd360_{parcellation_corr_type}"
+        elif translation == "INFOMAPd20_INFOMAPnetmatd20":
+            main_brainrep_data_path_root=f"{data_root_path}/NeuroTranslate/brain_reps_datasets/{dataset_choice}/maps_and_netmats/topo2toponetmat_{parcellation_corr_type}"
+        else:     #translation == "INFOMAPd20_schaeferd100":
+            main_brainrep_data_path_root=f"{data_root_path}/NeuroTranslate/brain_reps_datasets/{dataset_choice}/maps_and_netmats/topo2schaeferd{from_parcellation}_{parcellation_corr_type}"
+        
+        train_netmat_np = np.load(f"{main_brainrep_data_path_root}/train_{hemi_cond}_vecnetmat_uppertri.npy")
+        train_surf_np = np.load(f"{main_brainrep_data_path_root}/train_{hemi_cond}_surf.npy")
+        val_netmat_np = np.load(f"{main_brainrep_data_path_root}/validation_{hemi_cond}_vecnetmat_uppertri.npy")
+        val_surf_np = np.load(f"{main_brainrep_data_path_root}/validation_{hemi_cond}_surf.npy")
+        if TEST_FLAG is True:
+            te_netmat_np = np.load(f"{main_brainrep_data_path_root}/test_{hemi_cond}_vecnetmat_uppertri.npy")
+            te_surf_np = np.load(f"{main_brainrep_data_path_root}/test_{hemi_cond}_surf.npy")
+        write_to_file(f'Loaded in TRAIN. They have shapes: {train_netmat_np.shape} & {train_surf_np.shape} respectively.', filepath=write_fpath)
+        write_to_file(f'Loaded in VALIDATION. They have shapes: {val_netmat_np.shape} & {val_surf_np.shape} respectively.', filepath=write_fpath)
+        write_to_file(f'Loaded in VALIDATION. They have shapes: {te_netmat_np.shape} & {te_surf_np.shape} respectively.', filepath=write_fpath)
+
     assert train_surf_np.shape[0] == train_netmat_np.shape[0]
     assert val_surf_np.shape[0] == val_netmat_np.shape[0]
     assert te_surf_np.shape[0] == te_netmat_np.shape[0]
@@ -318,44 +281,23 @@ def whole_model_arch(config):
         write_to_file(f'We expand on channel dim now. VAL SHAPE: {val_surf_np.shape} -- should be Nx1xPxV after expansion', filepath=write_fpath)
         write_to_file(f'We expand on channel dim now. TEST SHAPE: {te_surf_np.shape} -- should be Nx1xPxV after expansion', filepath=write_fpath)
 
-    # tr_loader, val_loader, mean_train_label = fcn_prep_data_get_loaders(train_netmat=train_netmat_np, train_surface=train_surf_np, validation_netmat=val_netmat_np, validation_surface=val_surf_np, parcellation_N=from_parcellation, netmat_prep_choice=netmat_prep_choice, b_sz=batch_size, write_fpath=write_fpath)
-    # padding=50 #config['transformer']['padding'] #TODO if model does worse, might be because padding was once done BEFORE putting in fcn_prep_data_get_loaders so revert to test if so
-    # upper_tri_sz = train_netmat_np.shape[1] # should be SUBx4950 (or node size upper tri count)
     if flag_experiment_ICArecon:
-        write_to_file(f"CHOSEN TO RECONSTRUCT ICA MAPs! {flag_experiment_ICArecon}", filepath=write_fpath)
-                      
+        write_to_file(f"CHOSEN TO RECONSTRUCT ICA MAPs! {flag_experiment_ICArecon}", filepath=write_fpath)       
         tr_loader, val_loader, mean_train_label = fcn_prep_data_get_loaders_ICAren(train_surface=train_surf_np, validation_surface=val_surf_np, b_sz=batch_size, write_fpath=write_fpath)
         if TEST_FLAG:
             tr_loader_for_test, te_loader, _ = fcn_prep_data_get_loaders_ICAren(train_surface=train_surf_np, validation_surface=te_surf_np, b_sz=te_batch_size, write_fpath=write_fpath)
     
     else:
         write_to_file(f"regular training, not ICA recon.", filepath=write_fpath)
-        tr_loader, val_loader, mean_train_label = fcn_prep_data_get_loaders(train_netmat=train_netmat_np, train_surface=train_surf_np, validation_netmat=val_netmat_np, validation_surface=val_surf_np, parcellation_N=from_parcellation, netmat_prep_choice=netmat_prep_choice, surf_prep_choice=surf_prep_choice, b_sz=batch_size, write_fpath=write_fpath)
+        tr_loader, val_loader, mean_train_label, train_subjects_to_keep, validation_subjects_to_keep = fcn_prep_data_get_loaders(train_netmat=train_netmat_np, train_surface=train_surf_np, validation_netmat=val_netmat_np, validation_surface=val_surf_np, parcellation_N=from_parcellation, netmat_prep_choice=netmat_prep_choice, surf_prep_choice=surf_prep_choice, b_sz=batch_size, write_fpath=write_fpath)
         if TEST_FLAG:
-            tr_loader_for_test, te_loader, _ = fcn_prep_data_get_loaders(train_netmat=train_netmat_np, train_surface=train_surf_np, validation_netmat=te_netmat_np, validation_surface=te_surf_np, parcellation_N=from_parcellation, netmat_prep_choice=netmat_prep_choice, surf_prep_choice=surf_prep_choice, b_sz=te_batch_size, write_fpath=write_fpath)
+            tr_loader_for_test, te_loader, _, _, test_subjects_to_keep = fcn_prep_data_get_loaders(train_netmat=train_netmat_np, train_surface=train_surf_np, validation_netmat=te_netmat_np, validation_surface=te_surf_np, parcellation_N=from_parcellation, netmat_prep_choice=netmat_prep_choice, surf_prep_choice=surf_prep_choice, b_sz=te_batch_size, write_fpath=write_fpath, bilateral_condition=bilateral_condition)
         
     write_to_file(f"Loaded in data. Tunning on dataset: {dataset_choice}", filepath=write_fpath)
-    
+    write_to_file(f"len of test subejct to keep {len(test_subjects_to_keep)}", filepath=write_fpath)
     # because any parcellation given is NxN symm matrix, no need to netmat.shape to get sizes, we already know them from "from_parcellation" variable
-    hold, dim_c, dim_p, dim_v = train_surf_np.shape
-    hold, upper_tri = train_netmat_np.shape
-    
-    # surf_check_nan = np.isnan(train_surf_np).sum()
-    # surf_check_inf = np.isinf(train_surf_np).sum()
-    # netmat_check_nan = np.isnan(train_netmat_np).sum()
-    # netmat_check_inf = np.isinf(train_netmat_np).sum()
-    # total_train = surf_check_nan + surf_check_inf + netmat_check_nan + netmat_check_inf
-    # write_to_file(f'TRAINING COUNTS: surfnan{surf_check_nan} - surfinf{surf_check_inf} - netmatnan{netmat_check_nan} - netmatinf{netmat_check_inf}', filepath=write_fpath)
-
-    # surf_check_nan = np.isnan(val_surf_np).sum()
-    # surf_check_inf = np.isinf(val_surf_np).sum()
-    # netmat_check_nan = np.isnan(val_netmat_np).sum()
-    # netmat_check_inf = np.isinf(val_netmat_np).sum()
-    # total_val = surf_check_nan + surf_check_inf + netmat_check_nan + netmat_check_inf
-    # write_to_file(f'VALIDATION COUNTS: {surf_check_nan} - {surf_check_inf} - {netmat_check_nan} - {netmat_check_inf}', filepath=write_fpath)
-
-    # assert total_train == 0, "Nan/Inf in TRAIN. Check."
-    # assert total_val == 0, "Nan/Inf in VALIDATION. Check."
+    _, dim_c, dim_p, dim_v = train_surf_np.shape
+    _, upper_tri = train_netmat_np.shape
     del train_surf_np, val_surf_np #already converted to tensors for optimization, del to not take up so much mem anymore than necessary
 
     dim = config['transformer']['sit_dim']
@@ -410,7 +352,6 @@ def whole_model_arch(config):
                                                                 eta_min= config['CosineDecay']['eta_min']
                                                                 )
 
-
     elif config['optimisation']['optimiser']=='SGD':
         write_to_file('using SGD optimiser',  filepath=write_fpath)
         optimizer = optim.SGD(model.parameters(), lr=LR, 
@@ -454,8 +395,6 @@ def whole_model_arch(config):
             write_to_file("scheduler TRUE, so changing LR as needed.", filepath=write_fpath)
             lr_schedule.step() #after each epoch
             
-            # write_to_file(f"{lr_schedule.get_last_lr()}", filepath=write_fpath)
-            # write_to_file(f"Epoch {epoch}, Learning Rate: {optimizer.param_groups[0]['lr']}", filepath=write_fpath)
             curr_lr = optimizer.param_groups[0]['lr'] #lr_schedule.get_last_lr()[-1]
         else:
             curr_lr = LR
@@ -536,36 +475,33 @@ def whole_model_arch(config):
         mse_test_list = []
         mae_test_list = []
 
+        N_test = len(te_loader.dataset)
+        N_train = len(tr_loader_for_test.dataset)
+        # print(f"\n\n TRAIN SIZE{N_train} TEST SIZE{N_test}\n\n")
+        write_to_file(f"\n\n TRAIN SIZE{N_train} TEST SIZE{N_test}\n\n", filepath=write_fpath)
         if flag_experiment_ICArecon:
-            # hold, dim_c, dim_p, dim_v = train_surf_np.shape
-            hold_test = te_surf_np.shape[0]
-            # reshaped_data = train_surf_np.reshape(hold, dim_c*dim_p*dim_v)
-            reshaped_data_test = te_surf_np.reshape(hold_test, dim_c*dim_p*dim_v)
-            # ss = hold # subj num
-            tr_ground_truth = np.zeros((hold, dim_c*dim_p*dim_v))
-            tr_pred = np.zeros((hold, dim_c*dim_p*dim_v))
+            reshaped_data_test = te_surf_np.reshape(N_test, dim_c*dim_p*dim_v)
+            tr_ground_truth = np.zeros((N_train, dim_c*dim_p*dim_v))
+            tr_pred = np.zeros((N_train, dim_c*dim_p*dim_v))
             te_ground_truth = np.zeros(reshaped_data_test.shape)
             te_pred = np.zeros(reshaped_data_test.shape)
         else:
-            if bilateral_condition:
-                ss, nn = train_netmat_np.shape
-                ss = 2 * ss
-                tr_ground_truth = np.zeros((ss,nn))
-                tr_pred = np.zeros((ss,nn))
-                te_ground_truth = np.zeros((ss,nn))
-                te_pred = np.zeros((ss,nn))
-            else:
-                tr_ground_truth = np.zeros(train_netmat_np.shape)
-                tr_pred = np.zeros(train_netmat_np.shape) #SUBx4950 of zeros
-                te_ground_truth = np.zeros(te_netmat_np.shape)
-                te_pred = np.zeros(te_netmat_np.shape)
+            # if bilateral_condition is True:
+            #     N_train_bilateral, nn = N_train, upper_tri
+            #     N_test_bilateral, nn = N_test, upper_tri
+            #     tr_ground_truth = np.zeros((N_train_bilateral,nn))
+            #     tr_pred = np.zeros((N_train_bilateral,nn))
+            #     te_ground_truth = np.zeros((N_test_bilateral,nn))
+            #     te_pred = np.zeros((N_test_bilateral,nn))
+            # else:
+            tr_ground_truth = np.zeros((N_train, upper_tri))
+            tr_pred = np.zeros((N_train, upper_tri)) #SUBx4950 of zeros
+            te_ground_truth = np.zeros((N_test, upper_tri))
+            te_pred = np.zeros((N_test, upper_tri))
 
         with torch.no_grad():
             for i, data in enumerate(te_loader):
                 inputs, targets = data[0].to(device), data[1].to(device)#.squeeze()
-                # pred, latent = model(inputs) # pred will be a iterable, so pred[0] is the outcome and pred[1] is the latent which we dont need
-                # del latent, inputs
-
                 if VAE_flag:
                     pred, latent, log_latent = model(inputs) # pred will be a iterable, so pred[0] is the outcome and pred[1] is the latent which we dont need
                     del latent, inputs, log_latent
@@ -595,21 +531,6 @@ def whole_model_arch(config):
             across_sub_rho = np.corrcoef(te_ground_truth, te_pred) # gives sub_dim*2 x sub_dim*2 and will likely be two square clusters truth and pred
             write_to_file(f"SZ of bigg matrix: {across_sub_rho.shape}", filepath=write_fpath)
             np.save(f"{folder_to_save_test}/te_big_corr_matrix.npy", across_sub_rho) # save for viz later
-            
-            # # find best, and worst corr(truth,pred)
-            # row_half = np.split(across_sub_rho,2, axis = 0) #split in half across rows
-            # top_right_quad = np.split(row_half[0],2, axis = 1)[1] # again split by col, and top rigth quaf is corr(y,yhat) so choose 1 automatically == quad2
-            # find_max_rho = np.argwhere(top_right_quad == np.max(np.diag(top_right_quad)))[0] # find max across diagonal
-            # find_min_rho = np.argwhere(top_right_quad == np.min(np.diag(top_right_quad)))[0] #find min across diagonal
-            # max_idx = find_max_rho[0] # which subject had the highest corr across diagonal in quad2
-            # min_idx = find_min_rho[0] #0 is i, so subject index althougth same as j but keeping consistency
-            # write_to_file(f"IDX in big TEST corr matrix for both best (max) and worst (min) performance: {max_idx} {min_idx}", filepath=write_fpath)
-
-            # # save bet and worst netmat translation
-            # te_max_netmat_translation = te_pred[max_idx]
-            # te_min_netmat_translation = te_pred[min_idx]
-            # np.save(f"{folder_to_save_test}/te_max_netmat_translation.npy", te_max_netmat_translation)
-            # np.save(f"{folder_to_save_test}/te_min_netmat_translation.npy", te_min_netmat_translation)
 
             for i, data in enumerate(tr_loader_for_test):
                 inputs, targets = data[0].to(device), data[1].to(device)#.squeeze()
@@ -645,20 +566,6 @@ def whole_model_arch(config):
             across_sub_rho = np.corrcoef(tr_ground_truth, tr_pred) # gives sub_dim*2 x sub_dim*2 and will likely be two square clusters truth and pred
             np.save(f"{folder_to_save_test}/tr_big_corr_matrix.npy", across_sub_rho) # save for viz later
             
-            # # find best, mid, and worst corr(truth,pred)
-            # row_half = np.split(across_sub_rho,2, axis = 0) #split in half across rows
-            # top_right_quad = np.split(row_half[0],2, axis = 1)[1] # again split by col, and top rigth quaf is corr(y,yhat) so choose 1 automatically == quad2
-            # find_max_rho = np.argwhere(top_right_quad == np.max(np.diag(top_right_quad)))[0] # find max across daigonal
-            # find_min_rho = np.argwhere(top_right_quad == np.min(np.diag(top_right_quad)))[0] #find min across diagonal
-            # max_idx = find_max_rho[0] #0 is rows
-            # min_idx = find_min_rho[0] #0 is i, so subject index althougth same as j but keeping consistency
-            # write_to_file(f"IDX in big TRAIN corr matrix for both best (max) and worst (min) performance: {max_idx} {min_idx}", filepath=write_fpath)
-
-            # # save bet and worst netmat translation
-            # tr_max_netmat_translation = tr_pred[max_idx]
-            # tr_min_netmat_translation = tr_pred[min_idx]
-            # np.save(f"{folder_to_save_test}/tr_max_netmat_translation.npy", tr_max_netmat_translation)
-            # np.save(f"{folder_to_save_test}/tr_min_netmat_translation.npy", tr_min_netmat_translation)
         
         # save training losses
         df_version_mae = pd.DataFrame(mae_train_list)
@@ -671,6 +578,11 @@ def whole_model_arch(config):
         df_version_mae.to_csv(os.path.join(folder_to_save_test, 'mae_test_model.csv'))
         df_version_mse = pd.DataFrame(mse_test_list)
         df_version_mse.to_csv(os.path.join(folder_to_save_test, 'mse_test_model.csv'))
+
+        #save subjects that were kept i.e. had good data and were not scrubbed during cleaning
+        train_subjects_to_keep.to_csv(os.path.join(folder_to_save_test, 'train_subjects_to_keep.csv'))
+        validation_subjects_to_keep.to_csv(os.path.join(folder_to_save_test, 'validation_subjects_to_keep.csv'))
+        test_subjects_to_keep.to_csv(os.path.join(folder_to_save_test, 'test_subjects_to_keep.csv'))
 
         write_to_file("TRAIN Mean MAE:", filepath=write_fpath)
         write_to_file(np.nanmean(mae_train_list), filepath=write_fpath)
