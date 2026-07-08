@@ -1,7 +1,6 @@
 .DS_Store
 __pycache__
 .vscode
-
 batch/
 code/
 config/CNN/
@@ -15,8 +14,11 @@ logs/*.pt
 *.tsv
 *.csv
 *svq
+*.mat
+*.npy
+*.nii
+*.gii
 LocalTransformerTests/
-model_out/
 models/CNN*
 models/*kraken*
 models/models_*
@@ -24,7 +26,6 @@ models/ms_*
 models/sit.py
 patch_extraction/reorder_patches/
 prep_datasets/
-tmp_files/
 tools/CNN/
 tools/kraken*
 tools/SiT_BGT*
