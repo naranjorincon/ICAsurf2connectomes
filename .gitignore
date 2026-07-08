@@ -18,6 +18,7 @@ logs/*.pt
 *.npy
 *.nii
 *.gii
+*.txt
 LocalTransformerTests/
 models/CNN*
 models/*kraken*
