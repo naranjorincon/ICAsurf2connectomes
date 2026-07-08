@@ -12,6 +12,9 @@ data/
 images/
 logs/*.pt
 *.pt
+*.tsv
+*.csv
+*svq
 LocalTransformerTests/
 model_out/
 models/CNN*

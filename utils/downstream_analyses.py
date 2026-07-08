@@ -245,34 +245,25 @@ def whole_model_arch(config):
     # ABCD behavioral measures
     beh_path = f"{scratch_path}/NeuroTranslate/ABCD_behv/nc_y_nihtb.tsv"
     composite_scores = pd.read_csv(beh_path)
-    behv_of_interest_list = ["nc_y_nihtb__comp__cryst__uncor_score",
-                            "nc_y_nihtb__comp__fluid__uncor_score",
-                            "nc_y_nihtb__comp__tot__uncor_score",
-                            "nc_y_nihtb__flnkr__uncor_score",
-                            "nc_y_nihtb__lswmt__uncor_score",
-                            "nc_y_nihtb__readr__uncor_score"]
-    behv_type_list=["Crystal",
-                    "Fluid",
-                    "Total",
-                    "Flnkr",
-                    "LSWMT",
-                    "Readoral"]
-    # behv_of_interest_list = ["nc_y_nihtb__comp__cryst__uncor_score"]
-    # behv_type_list=["Crystal"]
+    # behv_of_interest_list = ["nc_y_nihtb__comp__cryst__uncor_score",
+    #                         "nc_y_nihtb__comp__fluid__uncor_score",
+    #                         "nc_y_nihtb__comp__tot__uncor_score",
+    #                         "nc_y_nihtb__flnkr__uncor_score",
+    #                         "nc_y_nihtb__lswmt__uncor_score",
+    #                         "nc_y_nihtb__readr__uncor_score"]
+    # behv_type_list=["Crystal",
+    #                 "Fluid",
+    #                 "Total",
+    #                 "Flnkr",
+    #                 "LSWMT",
+    #                 "Readoral"]
+    behv_of_interest_list = ["nc_y_nihtb__comp__cryst__uncor_score", "nc_y_nihtb__comp__fluid__uncor_score"]
+    behv_type_list=["Crystal", "Fluid"]
     for pp in range(len(behv_of_interest_list)):
         behv_of_interest=behv_of_interest_list[pp]
         print(f"Behv path file is: {beh_path}")
         print(f"Current behv of interest being visualized: {behv_of_interest}")
         behv_type=behv_type_list[pp]
-
-        # need to reset and redefine directory so we can create in same path
-        # directory = root + '/images' + '/ABCD' + '/' + translation  + '/' + model_type +'/' + version + '/'+ model_details + '/' + model_test_type + '/downstream_analyses' #
-        # directory=directory+f"/{behv_type}"
-        # if not os.path.exists(directory):
-        #     os.makedirs(directory)
-        #     print("Directory for model created.")
-        # else:
-        #     print("Directory for model output already exists.")
 
         cols_to_use_list = ["participant_id", f"{behv_of_interest}"] #nc_y_nihtb__comp__fluid__uncor_score, nc_y_nihtb__comp__cryst__uncor_score
         composite_scores = pd.read_csv(beh_path, sep='\t', usecols=cols_to_use_list) #nc_y_nihtb__comp__cryst__uncor_score, nc_y_nihtb__comp__fluid__uncor_score
@@ -297,20 +288,7 @@ def whole_model_arch(config):
         # repeat for test
         ABCD_main_ids_test_clean=list(get_subIDs_groups[get_subIDs_groups['group'] == 'test']['sub_IDs'].unique())
         print(len(ABCD_main_ids_test_clean))
-
-        bilateral_condition_flag=config['training']['bilateral_condition']
-        if bilateral_condition_flag is True:
-            print("BILATERAL CONDITION TRUE COMBINING LISTS")
-            hemi_cond_adaptive = "1R" if hemi_cond == "1L" else "1L" #makes it opposite of original hemi_cond
-            main_ids_path_other_hemi=f"{scratch_path}/NeuroTranslate/surf2netmat/utils/subj_ids/{datasets}/full_IDs_train_val_test_{hemi_cond_adaptive}_{matrix_type}_{parcellation_name}_{from_parcellation}_{parcellation_corr_type}.csv"
-            get_subIDs_groups_other_hemi = pd.read_csv(main_ids_path_other_hemi) 
-            train_other_hemi=list(get_subIDs_groups_other_hemi[get_subIDs_groups_other_hemi['group'] == 'train']['sub_IDs'].unique())   
-            test_other_hemi=list(get_subIDs_groups_other_hemi[get_subIDs_groups_other_hemi['group'] == 'test']['sub_IDs'].unique())
-            ABCD_main_ids_clean = ABCD_main_ids_clean + train_other_hemi
-            ABCD_main_ids_test_clean = ABCD_main_ids_test_clean + test_other_hemi
-            print(len(ABCD_main_ids_clean))
-            print(len(ABCD_main_ids_test_clean))
-            
+        
         # only get subjects that are in the main IDs for reference
         isin_check_mask = np.isin(unique_ids_clean, ABCD_main_ids_clean)
         print(len(isin_check_mask))
@@ -321,6 +299,15 @@ def whole_model_arch(config):
         print(len(isin_check_mask)) # can use same mask even if overwrite 
         unique_ids_clean_unified_test = unique_ids_clean[isin_check_mask] # same composite IDs file but now only using subjects that are in test
         print((unique_ids_clean_unified_test), unique_ids_clean_unified_test.shape)
+
+        bilateral_condition_flag=config['training']['bilateral_condition']
+        if bilateral_condition_flag is True:
+            unique_ids_clean_unified = np.concatenate((unique_ids_clean_unified,unique_ids_clean_unified), axis=0)
+            unique_ids_clean_unified_test = np.concatenate((unique_ids_clean_unified_test,unique_ids_clean_unified_test), axis=0)
+            print(len(unique_ids_clean_unified),len(unique_ids_clean_unified_test))
+            ABCD_main_ids_clean = ABCD_main_ids_clean+ABCD_main_ids_clean
+            ABCD_main_ids_test_clean= ABCD_main_ids_test_clean+ABCD_main_ids_test_clean
+            print(len(ABCD_main_ids_clean), len(ABCD_main_ids_test_clean))
 
         subj_list_scores = []
         # below gets crystal and fluid scores for all subjects in the large composite_scores file that ARE in the train_IDs AND have data (no nans)
@@ -366,12 +353,7 @@ def whole_model_arch(config):
         # netmats_match = ABCD_main_ids[subjs_with_behv_and_netmat_mask]
         iix_netmats = np.where(subjs_with_behv_and_netmat_mask == 1)[0] # gives tuple, so choose first element
         print(len(iix_netmats))
-        # print(netmats_match)
-        # behv_of_interest="nc_y_nihtb__comp__cryst__uncor_score"
-        crystal_match = ABCD_original_ABCD_behv_match_df_clean[f"{behv_of_interest}"].to_numpy()
-        # fluid_match = ABCD_original_ABCD_behv_match_df_clean[f"{behv_of_interest}"].to_numpy() #nc_y_nihtb__comp__fluid__uncor_score
-        # assert netmats_match.shape[0] == crystal_match.shape[0] == fluid_match.shape[0], "not same subject count, find why." # same subjects
-        # print(netmats_match.shape, crystal_match.shape, fluid_match.shape)
+        crystal_match = ABCD_original_ABCD_behv_match_df_clean[f"{behv_of_interest}"].to_numpy()        
 
         # repeat for test
         print(len(ABCD_original_test_ABCD_behv_match_df_clean["participant_id"]), ABCD_original_test_ABCD_behv_match_df_clean["participant_id"][0])
@@ -381,9 +363,7 @@ def whole_model_arch(config):
         iix_netmats_test = np.where(subjs_test_with_behv_and_netmat_mask == 1)[0] # gives tuple, so choose first element
         print(iix_netmats_test.shape, type(iix_netmats_test))
         crystal_match_test = ABCD_original_test_ABCD_behv_match_df_clean[f"{behv_of_interest}"].to_numpy()
-        # fluid_match_test = ABCD_original_test_ABCD_behv_match_df_clean[f"{behv_of_interest}"].to_numpy() #nc_y_nihtb__comp__fluid__uncor_score
-        # assert netmats_match_test.shape[0] == crystal_match_test.shape[0] == fluid_match_test.shape[0], "not same subject count, find why." # same subjects
-        # print(netmats_match_test.shape, crystal_match_test.shape, fluid_match_test.shape)
+
 
         fig, axes = plt.subplots(1, 2, figsize=(10, 4))
         axes=axes.flatten()
@@ -473,27 +453,17 @@ def whole_model_arch(config):
                 correction_method="BONF"
                 pval_threshold= 0.05*(0.5**3) # how many times to dive by 2 or times 1/2=0.5 
                 brain_cyrstal_rho_pval_adj_test = bonferroni_adj(brain_cyrstal_rho_pval_test)
-                # brain_fluid_rho_pval_adj = bonferroni_adj(brain_fluid_rho_pval)
                 brain_cyrstal_rho_pred_pval_adj_test = bonferroni_adj(brain_cyrstal_rho_pred_pval_test)
-                # brain_fluid_rho_pred_pval_adj = bonferroni_adj(brain_fluid_rho_pred_pval)
 
                 brain_cyrstal_rho_pval_adj_test[brain_cyrstal_rho_pval_adj_test > pval_threshold] = 0
-                # brain_fluid_rho_pval_adj[brain_fluid_rho_pval_adj > pval_threshold] = 0
                 brain_cyrstal_rho_pred_pval_adj_test[brain_cyrstal_rho_pred_pval_adj_test > pval_threshold] = 0
-                # brain_fluid_rho_pred_pval_adj[brain_fluid_rho_pred_pval_adj > pval_threshold] = 0
 
-                # count_crystal_true_survive = len(brain_cyrstal_rho_pval_adj[brain_cyrstal_rho_pval_adj > 0])
-                # print(count_crystal_true_survive)
                 brain_cyrstal_rho_pval_adj_test[brain_cyrstal_rho_pval_adj_test > 0] = 1
-                # brain_fluid_rho_pval_adj[brain_fluid_rho_pval_adj > 0] = 1
                 brain_cyrstal_rho_pred_pval_adj_test[brain_cyrstal_rho_pred_pval_adj_test > 0] = 1
-                # brain_fluid_rho_pred_pval_adj[brain_fluid_rho_pred_pval_adj > 0] = 1
 
             corr_netmat_crystal_pval_test = make_netmat(brain_cyrstal_rho_pval_adj_test, from_parcellation)
             print(corr_netmat_crystal_pval_test)
-            # corr_netmat_fluid_pval_test = make_netmat(brain_fluid_rho_pval_adj, from_parcellation)
             corr_netmat_crystal_pred_pval_test = make_netmat(brain_cyrstal_rho_pred_pval_adj_test, from_parcellation)
-            # corr_netmat_fluid_pred_pval_test = make_netmat(brain_fluid_rho_pred_pval_adj, from_parcellation)
             
             #diagonal should be 0
             # rho values
@@ -504,33 +474,18 @@ def whole_model_arch(config):
             np.fill_diagonal(corr_netmat_crystal_pred_pval_test, 0)
             
         true_pred_corr_crystal_test = np.corrcoef(brain_cyrstal_rho_test, brain_cyrstal_rho_pred_test)[0,1]
-        # true_pred_corr_fluid = np.corrcoef(brain_fluid_rho_test, brain_fluid_rho_pred_test)[0,1]
         true_pred_spear_crystal_obj_test = stats.spearmanr(brain_cyrstal_rho_test.squeeze(), brain_cyrstal_rho_pred_test.squeeze())
-        # true_pred_spear_fluid_obj = stats.spearmanr(brain_fluid_rho_test.squeeze(), brain_fluid_rho_pred_test.squeeze())
         true_pred_spear_crystal_test = true_pred_spear_crystal_obj_test.correlation
-        # true_pred_spear_fluid = true_pred_spear_fluid_obj.correlation
-
-        # 
-        # test_brain_behv_crystal_fishz_rhos_test = brain_cyrstal_rho_test
-        # test_brain_behv_fluid_fishz_rhos = brain_fluid_rho_test
-        # test_brain_behv_crystal_fishz_rhos_pred_test = brain_cyrstal_rho_pred_test
-        # test_brain_behv_fluid_fishz_rhos_pred = brain_fluid_rho_pred_test
 
         fig, axes = plt.subplots(1, 2, figsize=(12, 6))
         axes = axes.flatten()
         img0 = axes[0].imshow(corr_netmat_crystal_test, aspect="auto", vmin=-0.2, vmax=0.2, cmap="Spectral_r")
         axes[0].set_title(f"True-{behv_type}")
         plt.colorbar(img0, ax=axes[0])
-        # img1 = axes[1].imshow(corr_netmat_fluid_test, aspect="auto", vmin=-0.2, vmax=0.2, cmap="Spectral_r")
-        # axes[1].set_title("True-Fluid")
-        # plt.colorbar(img1, ax=axes[1])
 
         img1 = axes[1].imshow(corr_netmat_crystal_pred_test, aspect="auto", vmin=-0.2, vmax=0.2, cmap="Spectral_r")
         axes[1].set_title(f"Pred-(rho:{true_pred_corr_crystal_test:.2f},spr:{true_pred_spear_crystal_test:.2f})")
         plt.colorbar(img1, ax=axes[1])
-        # img3 = axes[3].imshow(corr_netmat_fluid_pred_test, aspect="auto", vmin=-0.2, vmax=0.2, cmap="Spectral_r")
-        # axes[3].set_title(f"Pred-(rho{true_pred_corr_fluid:.2f},spr:{true_pred_spear_fluid:.2f})")
-        # plt.colorbar(img3, ax=axes[3])
         plt.suptitle("TEST DATASET")
 
         plt.tight_layout()
@@ -539,328 +494,6 @@ def whole_model_arch(config):
         plt.savefig(directory + filename, format=img_extension)
         plt.close()
 
-        #########
-        # # pval_threshold_viz=pval_threshold
-        # count_survive_crystal_true_test = len(np.where(corr_netmat_crystal_pval_test==1)[0]) //2
-        # # count_survive_fluid_true_test = len(np.where(corr_netmat_fluid_pval_test==1)[0]) //2
-        # count_survive_crystal_pred_test = len(np.where(corr_netmat_crystal_pred_pval_test==1)[0]) //2
-        # # count_survive_fluid_pred_test = len(np.where(corr_netmat_fluid_pred_pval_test==1)[0]) //2
-
-
-        # if fdr_correction_flag:
-        #     # true_crystal_pval_upperbound=0.0003
-        #     # true_fluid_pval_upperbound=0.006
-        #     fig, axes = plt.subplots(1, 3, figsize=(16, 8))
-        #     axes = axes.flatten()
-        #     img0 = axes[0].imshow(corr_netmat_crystal_pval_test, aspect="auto", cmap="Greys")
-        #     # plt.colorbar(img0, ax=axes[0])
-        #     axes[0].set_title(f"True {behv_type} adj_p, n:{count_survive_crystal_true_test}")
-
-        #     # img1 = axes[1].imshow(corr_netmat_fluid_pval_test, aspect="auto", cmap="Greys")
-        #     # plt.colorbar(img1, ax=axes[1])
-        #     # axes[1].set_title(f"True Fluid adj_p, n:{count_survive_fluid_true_test}")
-
-        #     img1 = axes[1].imshow(corr_netmat_crystal_pred_pval_test, aspect="auto", cmap="Greys")
-        #     # plt.colorbar(img1, ax=axes[1])
-        #     axes[1].set_title(f"Pred {behv_type} adj_p, n:{count_survive_crystal_pred_test}")
-            
-        #     # img3 = axes[3].imshow(corr_netmat_fluid_pred_pval_test, aspect="auto", cmap="Greys")
-        #     # plt.colorbar(img3, ax=axes[3])
-        #     # axes[3].set_title(f"Pred Fluid adj_p, n:{count_survive_fluid_pred_test}")
-
-        #     corr_crystal_matching_true_pred=corr_netmat_crystal_pred_pval_test+corr_netmat_crystal_pval_test
-        #     match_2_crystal = len(np.where(corr_crystal_matching_true_pred==2)[0]) // 2 
-        #     # corr_fluid_matching_true_pred=corr_netmat_fluid_pred_pval_test+corr_netmat_fluid_pval_test
-        #     # match_2_fluid = len(np.where(corr_fluid_matching_true_pred==2)[0]) // 2 
-
-        #     img2 = axes[2].imshow(corr_crystal_matching_true_pred, aspect="auto", vmin=0, vmax=2, cmap="afmhot_r")
-        #     plt.colorbar(img2, ax=axes[2])
-        #     axes[2].set_title(f"True+Pred {behv_type} adj_p, n:{match_2_crystal}")
-
-        #     # img5 = axes[5].imshow(corr_fluid_matching_true_pred, aspect="auto", vmin=0, vmax=2, cmap="afmhot_r")
-        #     # axes[5].imshow(corr_netmat_fluid_pval, aspect="auto", cmap="Spectral_r")
-        #     # plt.colorbar(img5, ax=axes[5])
-        #     # axes[5].set_title(f"True+Pred Crystal adj_p, n:{match_2_fluid}")
-
-        # if bonferroni_correction_flag:
-        #     # true_crystal_pval_upperbound=0.0003
-        #     # true_fluid_pval_upperbound=0.006
-        #     fig, axes = plt.subplots(1, 3, figsize=(16, 8))
-        #     axes = axes.flatten()
-        #     img0 = axes[0].imshow(corr_netmat_crystal_pval_test, aspect="auto", cmap="Greys")
-        #     # plt.colorbar(img0, ax=axes[0])
-        #     axes[0].set_title(f"True {behv_type} adj_p, n:{count_survive_crystal_true_test}")
-        #     # img1 = axes[1].imshow(corr_netmat_fluid_pval_test, aspect="auto", cmap="Greys")
-        #     # plt.colorbar(img1, ax=axes[1])
-        #     # axes[1].set_title(f"True Fluid adj_p, n:{count_survive_fluid_true_test}")
-        #     img1 = axes[1].imshow(corr_netmat_crystal_pred_pval_test, aspect="auto", cmap="Greys")
-        #     # plt.colorbar(img2, ax=axes[1])
-        #     axes[1].set_title(f"Pred {behv_type} adj_p, n:{count_survive_crystal_pred_test}")
-        #     # img3 = axes[3].imshow(corr_netmat_fluid_pred_pval_test, aspect="auto", cmap="Greys")
-        #     # plt.colorbar(img3, ax=axes[3])
-        #     # axes[3].set_title(f"Pred Fluid adj_p, n:{count_survive_fluid_pred_test}")
-
-        #     corr_crystal_matching_true_pred_test=corr_netmat_crystal_pred_pval_test+corr_netmat_crystal_pval_test
-        #     match_2_crystal = len(np.where(corr_crystal_matching_true_pred_test==2)[0]) // 2 
-        #     # corr_fluid_matching_true_pred=corr_netmat_fluid_pred_pval_test+corr_netmat_fluid_pval_test
-        #     # match_2_fluid = len(np.where(corr_fluid_matching_true_pred==2)[0]) // 2 
-
-        #     img2 = axes[2].imshow(corr_crystal_matching_true_pred_test, aspect="auto", vmin=0, vmax=2, cmap="afmhot_r")
-        #     plt.colorbar(img2, ax=axes[2])
-        #     axes[2].set_title(f"True+Pred {behv_type} adj_p, n:{match_2_crystal}")
-
-        #     # img5 = axes[5].imshow(corr_fluid_matching_true_pred, aspect="auto", vmin=0, vmax=2, cmap="afmhot_r")
-        #     # plt.colorbar(img5, ax=axes[5])
-        #     # axes[5].set_title(f"True+Pred {behv_type} adj_p, n:{match_2_fluid}")
-
-        # plt.suptitle(f"TEST pvals {correction_method} adjusted, thr:{pval_threshold:.3f}")
-        # plt.tight_layout()
-        # filename = f"/test_downstream_brainbehv_pval_survive.{img_extension}"
-        # plt.savefig(directory + filename, format=img_extension)
-        # plt.close()
-
-        # survive_count_true_crystal_test = int(brain_cyrstal_rho_pval_adj_test.sum())
-        # # survive_count_true_fluid = int(brain_fluid_rho_pval_adj.sum())
-        # survive_count_pred_crystal_test = int(brain_cyrstal_rho_pred_pval_adj_test.sum())
-        # # survive_count_pred_fluid = int(brain_fluid_rho_pred_pval_adj.sum())
-
-
-        # fig = plt.figure(figsize=(8, 4))
-        # plt.hist(brain_cyrstal_rho_pval_adj_test.flatten(), bins=10, color='red', label="t_crystl", alpha=0.5)
-        # plt.hist(brain_cyrstal_rho_pred_pval_adj_test.flatten(), bins=10, color='blue', label="pred_crystl", alpha=0.5)
-        # plt.title(f"True,Pred, {behv_type} adj_p, {survive_count_true_crystal_test}/{survive_count_pred_crystal_test}")
-        # plt.legend()
-        # plt.suptitle(f"TEST pvals {correction_method} adjusted, thr:{pval_threshold:.3f}")
-        # plt.tight_layout()
-        # plt.close()
-
-        # ###### TRAIN
-        # train_true_netmats_clean = get_lower_tris(a[iix_netmats]) #only get netmats with behavioral data to compare
-        # train_pred_netmats_clean = get_lower_tris(b[iix_netmats]) #only get netmats with behavioral data to compare
-        # print(train_true_netmats_clean.shape, train_pred_netmats_clean.shape)
-
-        # brain_cyrstal_rho = np.zeros((1, train_true_netmats_clean.shape[1]))
-        # # brain_fluid_rho = np.zeros((1, train_true_netmats_clean.shape[1]))
-        # brain_cyrstal_rho_pred = np.zeros((1, train_pred_netmats_clean.shape[1]))
-        # # brain_fluid_rho_pred = np.zeros((1, train_pred_netmats_clean.shape[1]))
-        # print(brain_cyrstal_rho.shape)
-
-        # brain_cyrstal_rho_pval = np.zeros((1, train_true_netmats_clean.shape[1]))
-        # # brain_fluid_rho_pval = np.zeros((1, train_true_netmats_clean.shape[1]))
-        # brain_cyrstal_rho_pred_pval= np.zeros((1, train_pred_netmats_clean.shape[1]))
-        # # brain_fluid_rho_pred_pval = np.zeros((1, train_pred_netmats_clean.shape[1]))
-
-        # # tt = stats.pearsonr(train_true_netmats_clean[:,10], crystal_match)#[0,1]
-        # # print(stats.pearsonr(train_true_netmats_clean[:,10], crystal_match))
-        # for ee in range(train_true_netmats_clean.shape[1]):
-        #     if numpy_corr_flag:
-        #         brain_cyrstal_rho[:,ee] = np.corrcoef(train_true_netmats_clean[:,ee], crystal_match)[0,1]
-        #         # brain_fluid_rho[:,ee] = np.corrcoef(train_true_netmats_clean[:,ee], fluid_match)[0,1]
-        #         brain_cyrstal_rho_pred[:,ee] = np.corrcoef(train_pred_netmats_clean[:,ee], crystal_match)[0,1]
-        #         # brain_fluid_rho_pred[:,ee] = np.corrcoef(train_pred_netmats_clean[:,ee], fluid_match)[0,1]
-        #     elif scipy_corr_flag:
-        #         # using scipy instead for also quick p-value --- corr, p-val_cal from beta distribution
-        #         brain_cyrstal_rho[:,ee] = stats.pearsonr(train_true_netmats_clean[:,ee], crystal_match)[0]
-        #         # brain_fluid_rho[:,ee] = stats.pearsonr(train_true_netmats_clean[:,ee], fluid_match)[0]
-        #         brain_cyrstal_rho_pred[:,ee] = stats.pearsonr(train_pred_netmats_clean[:,ee], crystal_match)[0]
-        #         # brain_fluid_rho_pred[:,ee] = stats.pearsonr(train_pred_netmats_clean[:,ee], fluid_match)[0]
-
-        #         brain_cyrstal_rho_pval[:,ee] = stats.pearsonr(train_true_netmats_clean[:,ee], crystal_match)[1]
-        #         # brain_fluid_rho_pval[:,ee] = stats.pearsonr(train_true_netmats_clean[:,ee], fluid_match)[1]
-        #         brain_cyrstal_rho_pred_pval[:,ee] = stats.pearsonr(train_pred_netmats_clean[:,ee], crystal_match)[1]
-        #         # brain_fluid_rho_pred_pval[:,ee] = stats.pearsonr(train_pred_netmats_clean[:,ee], fluid_match)[1]
-
-        # # print(brain_fluid_rho, brain_fluid_rho.shape)
-        # print(brain_cyrstal_rho, brain_cyrstal_rho.shape)
-        # filename = f"/TRUE_train_brain_{behv_type}_rho.npy"
-        # np.save(directory+f'{filename}', brain_cyrstal_rho)
-
-        # filename = f"/PRED_train_brain_{behv_type}_rho.npy"
-        # np.save(directory+f'{filename}', brain_cyrstal_rho_pred)
-
-        # #make into netmats to show
-        # corr_netmat_crystal = make_netmat(fisher_z_transform(brain_cyrstal_rho), from_parcellation)
-        # # corr_netmat_fluid = make_netmat(fisher_z_transform(brain_fluid_rho), from_parcellation)
-        # corr_netmat_crystal_pred = make_netmat(fisher_z_transform(brain_cyrstal_rho_pred), from_parcellation)
-        # # corr_netmat_fluid_pred = make_netmat(fisher_z_transform(brain_fluid_rho_pred), from_parcellation)
-
-        # if scipy_corr_flag:
-        #     fdr_correction_flag=False
-        #     bonferroni_correction_flag=True
-        #     pval_threshold= 0.05*(0.5**2) # how many times to dive by 2 or times 1/2=0.5 
-
-        #     if fdr_correction_flag:
-        #         correction_method="FDR"
-        #         brain_cyrstal_rho_pval_adj = fdr_bhmethod(brain_cyrstal_rho_pval)
-        #         # brain_fluid_rho_pval_adj = fdr_bhmethod(brain_fluid_rho_pval)
-        #         brain_cyrstal_rho_pred_pval_adj = fdr_bhmethod(brain_cyrstal_rho_pred_pval)
-        #         # brain_fluid_rho_pred_pval_adj = fdr_bhmethod(brain_fluid_rho_pred_pval)
-
-        #     if bonferroni_correction_flag:
-        #         correction_method="BONF"
-        #         brain_cyrstal_rho_pval_adj = bonferroni_adj(brain_cyrstal_rho_pval)
-        #         # brain_fluid_rho_pval_adj = bonferroni_adj(brain_fluid_rho_pval)
-        #         brain_cyrstal_rho_pred_pval_adj = bonferroni_adj(brain_cyrstal_rho_pred_pval)
-        #         # brain_fluid_rho_pred_pval_adj = bonferroni_adj(brain_fluid_rho_pred_pval)
-
-        #     brain_cyrstal_rho_pval_adj[brain_cyrstal_rho_pval_adj > pval_threshold] = 0
-        #     # brain_fluid_rho_pval_adj[brain_fluid_rho_pval_adj > pval_threshold] = 0
-        #     brain_cyrstal_rho_pred_pval_adj[brain_cyrstal_rho_pred_pval_adj > pval_threshold] = 0
-        #     # brain_fluid_rho_pred_pval_adj[brain_fluid_rho_pred_pval_adj > pval_threshold] = 0
-
-        #     brain_cyrstal_rho_pval_adj[brain_cyrstal_rho_pval_adj > 0] = 1
-        #     # find_true_ones_crystal = np.where(brain_cyrstal_rho_pval_adj==1)[1]
-        #     # print(find_true_ones_crystal)
-        #     # reset = brain_cyrstal_rho_pval_adj
-        #     # reset[reset != find_true_ones_crystal] = 0
-        #     # reset[reset == find_true_ones_crystal] = 1
-
-
-        #     brain_cyrstal_rho_pval_adj_true_survival = np.where(brain_cyrstal_rho_pval_adj == 1)[1] #idx of TRUE
-        #     # rest_brain_cyrstal_rho_pval_adj = brain_cyrstal_rho_pval_adj
-        #     # rest_brain_cyrstal_rho_pval_adj[rest_brain_cyrstal_rho_pval_adj > pval_threshold] = 0
-        #     # print(brain_cyrstal_rho_pval_adj_true_survival)
-        #     # brain_fluid_rho_pval_adj[brain_fluid_rho_pval_adj > 0] = 1
-        #     brain_cyrstal_rho_pred_pval_adj[brain_cyrstal_rho_pred_pval_adj > 0] = 1
-        #     # brain_cyrstal_rho_pred_pval_adj[brain_cyrstal_rho_pval_adj_true_survival > 0] = 2
-
-        #     # brain_fluid_rho_pred_pval_adj[brain_fluid_rho_pred_pval_adj > 0] = 1
-
-        #     corr_netmat_crystal_pval = make_netmat(brain_cyrstal_rho_pval_adj, from_parcellation)
-        #     # true_survival_crystal = make_netmat(reset, from_parcellation)
-        #     # corr_netmat_fluid_pval = make_netmat(brain_fluid_rho_pval_adj, from_parcellation)
-        #     corr_netmat_crystal_pred_pval = make_netmat(brain_cyrstal_rho_pred_pval_adj, from_parcellation)
-        #     # corr_netmat_fluid_pred_pval = make_netmat(brain_fluid_rho_pred_pval_adj, from_parcellation)
-            
-        #     #diagonal should be 0
-        #     np.fill_diagonal(corr_netmat_crystal_pval, 0)
-        #     # np.fill_diagonal(corr_netmat_fluid_pval, 0)
-        #     np.fill_diagonal(corr_netmat_crystal_pred_pval, 0)
-        #     # np.fill_diagonal(corr_netmat_fluid_pred_pval, 0)
-            
-        #     np.fill_diagonal(corr_netmat_crystal, 0)
-        #     # np.fill_diagonal(corr_netmat_fluid, 0)
-        #     np.fill_diagonal(corr_netmat_crystal_pred, 0)
-        #     # np.fill_diagonal(corr_netmat_fluid_pred, 0)
-
-        # true_pred_corr_crystal = np.corrcoef(brain_cyrstal_rho, brain_cyrstal_rho_pred)[0,1]
-        # # true_pred_corr_fluid = np.corrcoef(brain_fluid_rho, brain_fluid_rho_pred)[0,1]
-        # true_pred_spear_crystal_obj = stats.spearmanr(brain_cyrstal_rho.squeeze(), brain_cyrstal_rho_pred.squeeze())
-        # # true_pred_spear_fluid_obj = stats.spearmanr(brain_fluid_rho.squeeze(), brain_fluid_rho_pred.squeeze())
-        # true_pred_spear_crystal = true_pred_spear_crystal_obj.correlation
-        # # true_pred_spear_fluid = true_pred_spear_fluid_obj.correlation
-        # # print(true_pred_spear_crystal_obj, true_pred_spear_fluid_obj)
-
-        # # train_brain_behv_crystal_fishz_rhos = brain_cyrstal_rho
-        # # train_brain_behv_fluid_fishz_rhos = brain_fluid_rho
-        # # train_brain_behv_crystal_fishz_rhos_pred = brain_cyrstal_rho_pred
-        # # train_brain_behv_fluid_fishz_rhos_pred = brain_fluid_rho_pred
-
-        # fig, axes = plt.subplots(1, 2, figsize=(12,6))
-        # axes = axes.flatten()
-
-        # img0 = axes[0].imshow(corr_netmat_crystal, aspect="auto", vmin=-0.05, vmax=0.05, cmap="Spectral_r")
-        # axes[0].set_title(f"True {behv_type}")
-        # plt.colorbar(img0, ax=axes[0])
-        # # img1 = axes[1].imshow(corr_netmat_fluid, aspect="auto", vmin=-0.05, vmax=0.05, cmap="Spectral_r")
-        # # axes[1].set_title("True Fluid")
-        # # plt.colorbar(img1, ax=axes[1])
-
-        # img2 = axes[1].imshow(corr_netmat_crystal_pred, aspect="auto", vmin=-0.05, vmax=0.05, cmap="Spectral_r")
-        # axes[1].set_title(f"Pred, r:{true_pred_corr_crystal:.2f}, s:{true_pred_spear_crystal:.2f}")
-        # plt.colorbar(img2, ax=axes[1])
-        # plt.suptitle("TRAIN DATASET fishz(Corr w Behv)")
-
-        # plt.tight_layout()
-        # filename = f"/train_downstream_brainbehv.{img_extension}"
-        # plt.savefig(directory + filename, format=img_extension)
-        # # plt.close()
-
-        # # pval_threshold_viz=pval_threshold
-        # count_survive_crystal_true = len(np.where(corr_netmat_crystal_pval==1)[0]) //2
-        # # count_survive_fluid_true = len(np.where(corr_netmat_fluid_pval==1)[0]) //2
-        # count_survive_crystal_pred = len(np.where(corr_netmat_crystal_pred_pval==1)[0]) //2
-        # # count_survive_fluid_pred = len(np.where(corr_netmat_fluid_pred_pval==1)[0]) //2
-
-        # if fdr_correction_flag:
-        #     # true_crystal_pval_upperbound=0.0003
-        #     # true_fluid_pval_upperbound=0.006
-        #     fig, axes = plt.subplots(1, 3, figsize=(16, 8))
-        #     axes = axes.flatten()
-        #     img0 = axes[0].imshow(corr_netmat_crystal_pval, aspect="auto", cmap="Greys")
-        #     plt.colorbar(img0, ax=axes[0])
-        #     axes[0].set_title(f"True {behv_type} adj_p, n:{count_survive_crystal_true}")
-        #     # img1 = axes[1].imshow(corr_netmat_fluid_pval, aspect="auto", cmap="Greys")
-        #     # plt.colorbar(img1, ax=axes[1])
-        #     # axes[1].set_title(f"True Fluid adj_p, n:{count_survive_fluid_true}")
-        #     img2 = axes[1].imshow(corr_netmat_crystal_pred_pval, aspect="auto", cmap="Greys")
-        #     plt.colorbar(img2, ax=axes[2])
-        #     axes[1].set_title(f"Pred {behv_type} adj_p, n:{count_survive_crystal_pred}")
-        #     # img3 = axes[3].imshow(corr_netmat_fluid_pred_pval, aspect="auto", cmap="Greys")
-        #     # plt.colorbar(img3, ax=axes[3])
-        #     # axes[3].set_title(f"Pred Fluid adj_p, n:{count_survive_fluid_pred}")
-
-        #     corr_crystal_matching_true_pred=corr_netmat_crystal_pred_pval+corr_netmat_crystal_pval
-        #     match_2_crystal = len(np.where(corr_crystal_matching_true_pred==2)[0]) // 2 
-        #     # corr_fluid_matching_true_pred=corr_netmat_fluid_pred_pval+corr_netmat_fluid_pval
-        #     # match_2_fluid = len(np.where(corr_fluid_matching_true_pred==2)[0]) // 2 
-
-        #     img2 = axes[2].imshow(corr_crystal_matching_true_pred, aspect="auto", cmap="afmhot_r")
-        #     # axes[2].imshow(corr_netmat_crystal_pval, aspect="auto", cmap="Spectral_r")
-        #     plt.colorbar(img2, ax=axes[2])
-        #     axes[2].set_title(f"True+Pred {behv_type} adj_p, n:{match_2_crystal}")
-
-        # if bonferroni_correction_flag:
-        #     # true_crystal_pval_upperbound=0.0003
-        #     # true_fluid_pval_upperbound=0.006
-        #     fig, axes = plt.subplots(1, 3, figsize=(16, 8))
-        #     axes = axes.flatten()
-        #     img0 = axes[0].imshow(corr_netmat_crystal_pval, aspect="auto", cmap="Greys")
-        #     # plt.colorbar(img0, ax=axes[0])
-        #     axes[0].set_title(f"True {behv_type} adj_p, n:{count_survive_crystal_true}")
-        #     # img1 = axes[1].imshow(corr_netmat_fluid_pval, aspect="auto", cmap="Greys")
-        #     # plt.colorbar(img1, ax=axes[1])
-        #     # axes[1].set_title(f"True Fluid adj_p, n:{count_survive_fluid_true}")
-        #     img2 = axes[1].imshow(corr_netmat_crystal_pred_pval, aspect="auto", cmap="Greys")
-        #     # plt.colorbar(img2, ax=axes[1])
-        #     axes[1].set_title(f"Pred {behv_type} adj_p, n:{count_survive_crystal_pred}")
-        #     # img3 = axes[3].imshow(corr_netmat_fluid_pred_pval, aspect="auto", cmap="Greys")
-        #     # plt.colorbar(img3, ax=axes[3])
-        #     # axes[3].set_title(f"Pred Fluid adj_p, n:{count_survive_fluid_pred}")
-
-        #     corr_crystal_matching_true_pred=corr_netmat_crystal_pval+corr_netmat_crystal_pred_pval
-        #     match_2_crystal = len(np.where(corr_crystal_matching_true_pred==2)[0]) // 2 
-        #     # corr_fluid_matching_true_pred=corr_netmat_fluid_pred_pval+corr_netmat_fluid_pval
-        #     # match_2_fluid = len(np.where(corr_fluid_matching_true_pred==2)[0]) // 2 
-
-        #     img2 = axes[2].imshow(corr_crystal_matching_true_pred, aspect="auto", cmap="afmhot_r")
-        #     # axes[4].imshow(corr_netmat_crystal_pval, aspect="auto", cmap="Spectral_r")
-        #     plt.colorbar(img2, ax=axes[2])
-        #     axes[2].set_title(f"T+P {behv_type} adj_p, n:{match_2_crystal}")
-
-        #     # img5 = axes[5].imshow(corr_fluid_matching_true_pred, aspect="auto", cmap="afmhot_r")
-        #     # axes[5].imshow(corr_netmat_fluid_pval, aspect="auto", cmap="Spectral_r")
-        #     # plt.colorbar(img5, ax=axes[5])
-        #     # axes[5].set_title(f"True+Pred Crystal adj_p, n:{match_2_fluid}")
-
-        # plt.suptitle(f"TRAIN pvals {correction_method} adjusted, thr:{pval_threshold:.3f}")
-        # plt.tight_layout()
-        # filename = f"/train_downstream_brainbehv_pval_{correction_method}_survive.{img_extension}"
-        # plt.savefig(directory + filename, format=img_extension)
-        # # plt.close()
-
-        # fig = plt.figure(figsize=(8, 4))
-        # # axes = axes.flatten()
-        # plt.hist(brain_cyrstal_rho_pval_adj.flatten(), bins=10, color='red', label="true_crystl", alpha=0.5)
-        # plt.hist(brain_cyrstal_rho_pred_pval_adj.flatten(), bins=10, color='blue', label="pred_crystl", alpha=0.5)
-        # plt.title(f"True,Pred, {behv_type} adj_p")
-        # plt.legend()
-
-        # plt.suptitle(f"TRAIN pvals {correction_method} adjusted, thr:{pval_threshold:.3f}")
-        # plt.tight_layout()
-        # filename = f"/train_brain_behv_edge_correlations.{img_extension}"
-        # plt.savefig(directory + filename, format=img_extension)
-        # # plt.close()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='viz')

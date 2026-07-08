@@ -4,9 +4,9 @@
 #SBATCH -e /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/batch/tr_kSiT_recon.err%j
 #SBATCH --partition=tier2_cpu
 #SBATCH --account=janine_bijsterbosch
-#SBATCH --mem-per-cpu 18G# 30GB for bilateral
+#SBATCH --mem-per-cpu 10G# 30GB for bilateral
 #SBATCH --cpus-per-task 15
-#SBATCH -t 0-02:00:00  # might depend on epoch, approx 50epoch = 24 hours
+#SBATCH -t 0-12:00:00  # might depend on epoch, approx 50epoch = 24 hours
 
 source activate neurotranslate
 echo Activated environment with name: $CONDA_DEFAULT_ENV
@@ -36,7 +36,7 @@ echo chosen param file is: ${chosen_param_config}
 # echo "Using --> ${netmat2surf_path}/tmp_files/${model_type}/config_${config_model_name}.yml" # ${chosen_param_config}
 # python3 ${netmat2surf_path}/tools/${model_type}/top2conn_train.py ${netmat2surf_path}/tmp_files/${model_type}/config_${config_model_name}.yml #${chosen_param_config}
 
-# after training and test, visualize it
+## after training and test, visualize it
 config_model_name="070426_d6h3_tiny_adamW_cosinedecay_1L_full_bilateral_demean_wGelu_ico02"
 python3 ${netmat2surf_path}/utils/viz_top2conn_outputs_EXAMmodels.py ${netmat2surf_path}/tmp_files/${model_type}/config_${config_model_name}.yml
 
