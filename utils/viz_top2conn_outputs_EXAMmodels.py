@@ -93,9 +93,7 @@ def whole_model_arch(config):
 
     # specific_channel = config['training']['specific_channel']
     # if ica_reconstuction:
-    #     type_of_model_train_fcn = config['transformer']['model_details'] + f'_chnl{specific_channel}'
-    type_of_model_train_fcn = config['transformer']['model_details']
-    
+    #     type_of_model_train_fcn = config['transformer']['model_details'] + f'_chnl{specific_channel}'    
     model_test_type_list = [ config['testing']['chosen_test_model'] ] #["MSE"] #["MSE", "MAE", "RHO", "LAST"]
     img_extension = 'png' # png or eps #MICCAI file extension for images preferred
     val_step = 1 #5 or 1, depends. 
@@ -103,13 +101,17 @@ def whole_model_arch(config):
     from_parcellation = config['data']['from_parcellation']
     parcellation_corr_type = config['training']['parcellation_corr_type']
 
+    hemi_cond = config['training']['hemi_cond']
+    netmat_prep_choice = config['training']['netmat_prep_choice']
     if translation == "ICAd15_ICAd15": #over ride in this case
         ica_reconstuction = True
         version = "normICAnormICA" #over ride what it was prior
         chnl_icarecon = config['training']['specific_channel']
+        # chnl_icarecon=-1 # TODO remove this is only for now to loop over chanel reconstruction visuals
         # type_of_model_train_fcn = f"120425_d6h3_tiny_adamW_cosinedecay_reconICA_MSEtrain_expICARECON_chnl{chnl_icarecon}"
-        type_of_model_train_fcn = type_of_model_train_fcn + f"_chnl{chnl_icarecon}"
+        type_of_model_train_fcn = config['transformer']['model_details']
     else:
+        type_of_model_train_fcn = config['transformer']['model_details'].format(hemi_cond,parcellation_corr_type,translation,netmat_prep_choice)
         ica_reconstuction = False
 
     for mm in model_test_type_list:
@@ -117,7 +119,7 @@ def whole_model_arch(config):
         
         list_of_details=np.sort(glob.glob(f"{root}/model_out/{translation}/{datasets}/{model_type}/{version}/{type_of_model_train_fcn}")) # should be all versions and their detial names
         print(f"{root}/model_out/{translation}/{datasets}/{model_type}/{version}/{type_of_model_train_fcn}")
-        print(list_of_details)
+        print(list_of_details) 
         
         print("All detials to choose from")
         actual_details_to_choose = []
@@ -138,6 +140,7 @@ def whole_model_arch(config):
             model_details_list = ll #actual_details_to_choose[0] #"d12h10_adamW_cosinedecay_scheduler_skewloss"
             model_details = model_details_list #model_details_list[-1]
             print(f"Current ModDetails:{model_details}")
+            # chnl_icarecon = int(chnl_icarecon+1)
 
             # %%
             folder_to_save_model=f"{root}/model_out/{translation}/{datasets}/{model_type}/{version}/{model_details}/"
@@ -247,7 +250,7 @@ def whole_model_arch(config):
                 print("DATA already demeaned and predicted as such. For original versions, need to get unprep raw netmat data to get means.")
                 hemi_cond="1L"
                 print(f"\n\n check viz path translation:{translation}-->{scratch_path}/NeuroTranslate/brain_reps_datasets/{datasets}/maps_and_netmats/topo2schaeferd{from_parcellation}_{parcellation_corr_type} \n\n")
-                if translation == "ICAd15_glasserd360":
+                if "glasserd360" in translation:
                     train_netmat_np = np.load(f"{scratch_path}/NeuroTranslate/brain_reps_datasets/{datasets}/maps_and_netmats/topo2glasserd360_{parcellation_corr_type}/train_{hemi_cond}_vecnetmat_uppertri.npy")
                 elif "ICAd15_sch" in translation: #if its a ICA to schaefer translation
                     train_netmat_np = np.load(f"{scratch_path}/NeuroTranslate/brain_reps_datasets/{datasets}/maps_and_netmats/topo2schaeferd{from_parcellation}_{parcellation_corr_type}/train_{hemi_cond}_vecnetmat_uppertri.npy")
@@ -273,7 +276,7 @@ def whole_model_arch(config):
                     # te_surf_np = np.load(f"{scratch_path}/NeuroTranslate/brain_reps_datasets/{datasets}/ICA_maps/ICAd15_ico02/{hemi_cond}_train_surf.npy")
                     print(f'OUT OF SAMPLE Loaded in TEST. They have shapes: {te_netmat_np.shape}.')
                 else:
-                    if translation == "ICAd15_glasserd360":
+                    if "glasserd360" in translation:
                         te_netmat_np = np.load(f"{scratch_path}/NeuroTranslate/brain_reps_datasets/{datasets}/maps_and_netmats/topo2glasserd360_{parcellation_corr_type}/test_{hemi_cond}_vecnetmat_uppertri.npy")
                     elif "ICAd15_sch" in translation:                       
                         te_netmat_np = np.load(f"{scratch_path}/NeuroTranslate/brain_reps_datasets/{datasets}/maps_and_netmats/topo2schaeferd{from_parcellation}_{parcellation_corr_type}/test_{hemi_cond}_vecnetmat_uppertri.npy")

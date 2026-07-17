@@ -14,6 +14,5 @@ script_path="${root}/tools"
 config_file_path="${root}/config/resampling_sphere_prep"
 
 #run code
-python3 "${script_path}/step_2_prep_maps_and_netmats.py" --config_path "${config_file_path}/INFOMAPd20_netmats.yml"
-# python3 "${script_path}/step_2_prep_maps_and_netmats.py" --config_path "${config_file_path}/ICAd15_netmats.yml"
-# python3 "${script_path}/step_2_prep_maps_and_netmats.py" --config_path "${config_file_path}/ICAd15_schfd100.yml"
+# python3 "${script_path}/step_2_prep_maps_and_netmats.py" --config_path "${config_file_path}/INFOMAPd20_netmats.yml"
+python3 "${script_path}/step_2_prep_maps_and_netmats.py" --config_path "${config_file_path}/ICAd15_netmats.yml"

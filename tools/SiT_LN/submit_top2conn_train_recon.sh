@@ -4,9 +4,9 @@
 #SBATCH -e /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/batch/tr_kSiT_recon.err%j
 #SBATCH --partition=tier2_cpu
 #SBATCH --account=janine_bijsterbosch
-#SBATCH --mem-per-cpu 10G# 30GB for bilateral
+#SBATCH --mem-per-cpu 22G# 18GB for others and 30GB for bilateral
 #SBATCH --cpus-per-task 15
-#SBATCH -t 0-12:00:00  # might depend on epoch, approx 50epoch = 24 hours
+#SBATCH -t 3-00:00:00  # might depend on epoch, approx 50epoch = 24 hours
 
 source activate neurotranslate
 echo Activated environment with name: $CONDA_DEFAULT_ENV
@@ -20,11 +20,11 @@ model_type="SiT_LN"
 yaml_loc="${netmat2surf_path}/config/${model_type}"
 cd ${yaml_loc} #should be in config/../ path
 
-condition="hparams_SiTLN_recon.yml" # kept hparams at begining bc wildcard at start will include .hparams file(s)
+condition="hparams_SiTLN_surf2surfrecon.yml"  #"hparams_SiTLN_recon.yml" or "hparams_SiTLN_surf2surfrecon.yml"
 chosen_param_config=$(find "$yaml_loc" -type f -name "$condition")
 echo chosen param file is: ${chosen_param_config}
 
-# config_model_name=$(grep 'model_details' ${chosen_param_config} | awk '{ print $2 }'); #find model details, get the second column
+# config_model_name=$(grep 'unique_ID' ${chosen_param_config} | awk '{ print $2 }'); #find model details, get the second column
 # echo Model name and config file to freeze: ${config_model_name}
 
 # # date_time_stamp=$(date +"%Y%m%d_%Hh_%Mm_%Ss")
@@ -32,12 +32,13 @@ echo chosen param file is: ${chosen_param_config}
 # touch ${netmat2surf_path}/tmp_files/${model_type}/config_${config_model_name}.yml
 # cp ${chosen_param_config} ${netmat2surf_path}/tmp_files/${model_type}/config_${config_model_name}.yml
 
-# echo "param file created, copied, and saved at tmp path! If you want to submit another job, go ahead."
-# echo "Using --> ${netmat2surf_path}/tmp_files/${model_type}/config_${config_model_name}.yml" # ${chosen_param_config}
-# python3 ${netmat2surf_path}/tools/${model_type}/top2conn_train.py ${netmat2surf_path}/tmp_files/${model_type}/config_${config_model_name}.yml #${chosen_param_config}
+config_model_name="070426_translation_norm_ICAd15_demean_glasserd360_fullcorr_1L"
+echo "param file created, copied, and saved at tmp path! If you want to submit another job, go ahead."
+echo "Using --> ${netmat2surf_path}/tmp_files/${model_type}/config_${config_model_name}.yml" # ${chosen_param_config}
+python3 ${netmat2surf_path}/tools/${model_type}/top2conn_train.py ${netmat2surf_path}/tmp_files/${model_type}/config_${config_model_name}.yml #${chosen_param_config}
 
 ## after training and test, visualize it
-config_model_name="070426_d6h3_tiny_adamW_cosinedecay_1L_full_bilateral_demean_wGelu_ico02"
+# echo "using ${config_model_name}"
 python3 ${netmat2surf_path}/utils/viz_top2conn_outputs_EXAMmodels.py ${netmat2surf_path}/tmp_files/${model_type}/config_${config_model_name}.yml
 
 # # then look at downstream analyses

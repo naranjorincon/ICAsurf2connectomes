@@ -213,12 +213,13 @@ def main(config):
         
     # indeces for netmats later, so no need to compute everytime. Should be based on parcellation size and only upper triangle
     lr, lc = np.tril_indices(parcellation_size, k=-1) #only lower triangle, ignore diagonal
+    ele = int(0.5 * parcellation_size * (parcellation_size-1))
     for i, id in enumerate(ids): # reads in actual id num with 'id' inside the pandas column from the read csv, see above ids variable
         if dataset == "infomap_prior_ABCDdr":
-            # maps=20
+            maps=20
             filename=f'{path_to_data}/resamp_sub-{id}.{hemisphere_chosen}.shape.gii'
         elif dataset == "ABCD":
-            # maps=15
+            maps=15
             filename=f'{path_to_data}/resamp_NDARINV{id}.{hemisphere_chosen}.shape.gii'
         else:
             raise ValueError(f"Dataset {dataset} not recognized.")
@@ -227,7 +228,7 @@ def main(config):
             print(f"sub {id}/{i} does not have mesh file.")
             subject_list_skipped.append(i)
             non_usable_IDs.append(id)
-            get_mesh_data=np.zeros((20,40962)) #nothing tmp element, used to be 20 for maps but made into 1 might cause error when made into array later
+            get_mesh_data=np.zeros((maps,40962)) #nothing tmp element, used to be 20 for maps but made into 1 might cause error when made into array later
         else:
             get_mesh_data=nb.load(filename).agg_data()
             # print(f"mesh shape: {np.array(get_mesh_data).shape}")
@@ -240,7 +241,7 @@ def main(config):
                 print(f'sub {id}/{i} doesnt have netmat.')
                 netmat_subject_list_skipped.append(i)
                 non_usable_IDs.append(id)
-                vec_netmat=np.zeros((4950)).squeeze()
+                vec_netmat=np.zeros((ele)).squeeze()
             else:
                 get_sub_netmat=pd.read_csv(filename, header=None).to_numpy()
                 # passed so loaded well and can be part of list
@@ -255,7 +256,7 @@ def main(config):
                 print(f'sub {id}/{i} doesnt have netmat.')
                 netmat_subject_list_skipped.append(i)
                 non_usable_IDs.append(id)
-                vec_netmat=np.zeros((190)).squeeze()
+                vec_netmat=np.zeros((ele)).squeeze()
             else:
                 vec_netmat=np.load(filename)# already lower triangle
 

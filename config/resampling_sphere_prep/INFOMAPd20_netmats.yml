@@ -6,8 +6,8 @@ resolution:
 
 data:
   dataset: infomap_prior_ABCDdr #ABCD, HCPYA, HCPYA_ABCDdr, infomap_prior_ABCDdr
-  parcellation_name: IMnetmat #schaefer, glasser, INFOMAPnetmat
-  parcellation_nodes: 20 #20,100,300,360
+  parcellation_name: INFOMAPnetmat #schaefer, glasser, INFOMAPnetmat
+  parcellation_nodes: 20 #100,300,360, 20
   parcellation_type: partial #full, partial correlation mats
   sub_ids_path: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/utils/dr_scripts/neurotranslate_abcd_subject_list.txt
   netmats_paths: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/ABCD_NetMats

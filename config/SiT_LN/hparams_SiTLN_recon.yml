@@ -1,26 +1,35 @@
 # @Author: Samuel Naranjo Rincón
 # @Last Modified time: JUN 29 2026
 
+# ICAd15_schfd100 ICAd15_schfd300 ICAd15_glasserd360 ICAd15_ICAnetmatd15
+# INFOMAPd20_schfd100  INFOMAPd20_schfd300  INFOMAPd20_glasserd360 INFOMAPd20_INFOMAPnetmatd20
+
+# normICAdemeanNETMAT, normICAdemeanNETMAT_ICA
+# normIMdemeanNETMAT, normIMdemeanNETMAT_IM
+identification:
+  unique_ID: 070426_translation_norm_IMd15_demean_glasserd360_fullcorr_1L
+
 data:
-  translation: INFOMAPd20_INFOMAPnetmatd20 #ICAd15_schfd100 ICAd15_schfd300 ICAd15_glasserd360 INFOMAPd20_schfd100 ICAd15_ICAnetmatd15 INFOMAPd20_INFOMAPnetmatd20
-  version: normIMdemeanIMMAT #normICAdemeanMAT, normIMdemeanMAT, normICAdemeanICAMAT, normIMdemeanIMMAT
-  model_type: SiTLN
-  from_parcellation: 20 #does not matter for when translating to ICA/IM netmats
-  to_icamap: 20 #15 or 20 for infomap
+  translation: ICAd15_schfd300 
+  version: normICAdemeanMAT 
+  model_type: kSiTLN
+  from_parcellation: 300 #does not matter for when translating to ICA/IM netmats
+  to_icamap: 15 #15 or 20 for infomap
   icores: 2
-  parcellation_name: IMnetmat #schaefer, ICAnetmat, IMnetmat
+  parcellation_name: schaefer #schaefer, glasser, ICAnetmat, IMnetmat
 
 logging:
-  sanity_file_pth: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/batch/{}_{}_{}d{}_train_partial
-  test_file_pth: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/batch/{}_{}_{}d{}_test_partial
+  sanity_file_pth: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/batch/{}_{}_{}d{}_train_{}
+  test_file_pth: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/batch/{}_{}_{}d{}_test_{}
   model_out_root: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/model_out
-  model_save_path: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/logs
+  # old-->model_save_path: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/logs
+  model_save_path: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/logs
 
 training:
   fcn_train: train_MSE_skewloss #train_MSE_skewloss #train_krakenonly
   flag_experiment_ICArecon: False
   fcn_model_to_use: SurfaceImageTransformer #linear_translator
-  dataset_choice: infomap_prior_ABCDdr # ABCD or HCPYA or HCPYA_ABCDdr or infomap_prior_ABCDdr
+  dataset_choice: ABCD # ABCD or HCPYA or HCPYA_ABCDdr or infomap_prior_ABCDdr
   LR: 0.01 #0.00001 is original
   bs: 32 # batch size, og is 256
   val_epoch: 1 #5 is our standard, arbitary so feel free to change.
@@ -32,7 +41,7 @@ training:
   specific_channel_end: 0
   netmat_prep_choice: demean #norm or fisherz or demean, None, demean_fisherz
   surf_prep_choice: norm
-  parcellation_corr_type: partial #full or partial
+  parcellation_corr_type: full #full or partial
   overfit_condition: False
   overfit_condition_sub_range: 2000 # up to which subj, if overfit_condition false this is ignored
   VAE_flag: False
@@ -51,7 +60,8 @@ transformer:
   dim_head: 64 #64, 128
   emb_dropout: 0.3
   dropout: 0.5 # moved this higher, was originall 0.1
-  model_details: 070426_d6h3_tiny_adamW_cosinedecay_1L_partialIMmat_demean_wGelu_ico02
+  # old-->model_details: 070426_d6h3_tiny_adamW_cosinedecay_{}_{}_{}_{}_wGelu_ico02
+  model_details: 120325_d6h3_tiny_adamW_cosinedecay_recon_MSEtrain_1L_full_demean_exp300_wGelu
 
 optimisation:
   optimiser: AdamW # SGD = stochastic gradent descent; Adam = Adam optimization

@@ -32,14 +32,12 @@ def make_netmat(data, netmat_dim=100):
     Makes netmat from upper triangle in numpy
     '''
     sing_sub = int((netmat_dim * (netmat_dim-1))/2)
-
     # get indeces of upptri cause all these vec netmats are upper trinagles. 
     # ones is nice cause makes diagonal auto==1
     out_mat_init = np.zeros(2*sing_sub+netmat_dim).reshape(netmat_dim,netmat_dim)
-
     # inds_lowtri = np.triu_indices_from(out_mat_init,k=1) # k=1 means no diagonal?
     inds_lowtri = np.tril_indices_from(out_mat_init,k=-1) # k=1 means no diagonal?
-   
+
     out_mat_init[inds_lowtri] = data #presumably, data is from upper triangle from matlab but needs index lower trinagle to have good visuals not sure why...
     out_mat_init = out_mat_init + out_mat_init.T
     np.fill_diagonal(out_mat_init, 1)
@@ -50,9 +48,7 @@ def make_netmat_into_trinagle(data, netmat_dim=100, upper_trinagle=None):
     takes vectorized triangle data and turns it into a netmat with 0 mask depending on which is chosen
     '''
     sing_sub = int((netmat_dim * (netmat_dim-1))/2) #parcellation upper/lower trinagle elements
-
     out_mat_init = np.zeros(2*sing_sub+netmat_dim).reshape(netmat_dim,netmat_dim)
-
     if upper_trinagle:
         # inds_tri = np.triu_indices_from(out_mat_init,k=1) # k=1 means no diagonal
         inds_tri = np.tril_indices_from(out_mat_init,k=-1) 
@@ -95,14 +91,12 @@ def mat2vector(mat, diagonal_flag: bool=False):
         upper_tri_indices = np.triu_indices(parcellation_sz, k=0)
     else:
         upper_tri_indices = np.triu_indices(parcellation_sz, k=1)
-
     # when runing train, we only use one subject so .squeeze() 
     # removes batch x channel and leaves us w pxp so indx is different
     if len(og_mat_shape) == 2: # if onyl 2 dim then @ test or batch = 1
         upper_triangle_vectors = mat[upper_tri_indices[0], upper_tri_indices[1]]
     elif len(og_mat_shape) > 2:
         upper_triangle_vectors = mat[:, upper_tri_indices[0], upper_tri_indices[1]]
-
     return upper_triangle_vectors
 
 def BGBMT_mesh_greedy_decode(model, source, dec_channels, ico_patch, ico_vertex, device, b=1, target=None):
@@ -233,7 +227,7 @@ def fisher_z_transform(correlation_values):
     z_output = 0.5 * np.log((1 + correlation_values) / (1 - correlation_values))
     return z_output
 
-def fcn_prep_data_get_loaders_ICAren(train_surface, validation_surface, b_sz=32, write_fpath=''):
+def fcn_prep_data_get_loaders_ICAren(train_surface, validation_surface, b_sz=32, write_fpath='',train_subject_list=None, validation_subject_list=None):
     '''
     Preprocessing function that takes in netmat parcellation of size N and suface maps for some component, like ICA. For netmats, input data is a subx[(N*(N-1))/2] matrix, 
     so upper triangle elements. parcellation = 100, then N=4950 and so on. Provided a tranformation condition is given, norm or fisherZ, ir applies both or either. Then, makes full connectome
@@ -242,8 +236,12 @@ def fcn_prep_data_get_loaders_ICAren(train_surface, validation_surface, b_sz=32,
     They all use this so make into a fcn all can call!
     '''
     write_to_file(f'regular surface TRAIN shape: {train_surface.shape}', filepath=write_fpath)
-    tr_sub_dim, c_dim, p_dim, v_dim = train_surface.shape
+    write_to_file('Cleaning data first if needed! Training data.', filepath=write_fpath)
+    train_surface, _, train_subjects_to_keep = fcn_get_clean_data(surf=train_surface, netmat=None, subject_list_path=train_subject_list, write_fpath=write_fpath, ICA_surf_only=True)
+    write_to_file('Cleaning data first if needed! For validation/test now.', filepath=write_fpath)
+    validation_surface, _, validation_subjects_to_keep = fcn_get_clean_data(surf=validation_surface, netmat=None, subject_list_path=validation_subject_list, write_fpath=write_fpath, ICA_surf_only=True)
     
+    tr_sub_dim, c_dim, p_dim, v_dim = train_surface.shape
     mean_train_surface = np.nanmean(train_surface, axis=0, keepdims=True) #1x15x320x153
     sigma_train_surface = np.nanstd(train_surface, axis=0, keepdims=True) #1x15x320x153
     normalized_train_surface = (train_surface - mean_train_surface) / (sigma_train_surface + 10e-99)
@@ -264,10 +262,12 @@ def fcn_prep_data_get_loaders_ICAren(train_surface, validation_surface, b_sz=32,
     # if model.__class__.__name__ == "SurfaceImageTransformer_ICArecon":
     mean_train_surface = mean_train_surface.reshape(1, c_dim*p_dim*v_dim)
     del normalized_train_surface, normalized_train_surface_reshaped, normalized_val_surface, normalized_val_surface_reshaped
-    return train_loader, val_loader, mean_train_surface
+    return train_loader, val_loader, mean_train_surface, train_subjects_to_keep, validation_subjects_to_keep
 
-def fcn_get_clean_data(surf: np.array, netmat: np.array, subject_list_path: str, write_fpath: str='', bilateral_condition: bool=False):
+def fcn_get_clean_data(surf: None, netmat: None, subject_list_path: str="", write_fpath: str="", bilateral_condition: bool=False, ICA_surf_only: bool=False):
     '''removes subjects with NaNs in either surf or netmats.'''
+    if ICA_surf_only is True:
+        netmat = np.zeros((surf.shape[0],1)) #forced to not have any nans cause not real in this case
     no_nan_condition=False
     no_inf_condition=False #assume there are inf/nans
     surf_nan=np.isnan(surf); netmat_nan=np.isnan(netmat)
@@ -292,20 +292,25 @@ def fcn_get_clean_data(surf: np.array, netmat: np.array, subject_list_path: str,
                 subject_list_path=f"{main_subj_ID_root}/ABCD_test_IDs.txt"
 
         subjects_to_keep = pd.read_csv(subject_list_path) #same as what is given
+        if bilateral_condition is True:
+            subjects_to_keep = pd.concat([subjects_to_keep, subjects_to_keep], ignore_index=True)
         return clean_surf, clean_netmat, subjects_to_keep
     else:
         write_to_file("NaNs or INFs detected. Cleaning...", filepath=write_fpath)
         find_inf_mask_surf=(np.sum(np.sum(np.sum(surf_inf,axis=-1),axis=-1), axis=-1)).astype(bool)
         find_nan_mask_surf=(np.sum(np.sum(np.sum(surf_nan,axis=-1),axis=-1), axis=-1)).astype(bool) #add backwards to get subject sums of NaNs
         full_mask_surf = (find_inf_mask_surf+find_nan_mask_surf)
+        write_to_file(f"Total surf mask len and count: {len(full_mask_surf)} {full_mask_surf.sum()}", filepath=write_fpath)
         # same for netmat
         find_inf_mask_netmat=(np.sum(netmat_inf,axis=-1)).astype(bool)
         find_nan_mask_netmat=(np.sum(netmat_nan,axis=-1)).astype(bool) #add backwards to get subject sums of NaNs
         full_mask_netmat = (find_inf_mask_netmat+find_nan_mask_netmat)
+        write_to_file(f"Total netmat mask len and count: {len(full_mask_netmat)} {full_mask_netmat.sum()}", filepath=write_fpath)
         full_mask_all = (full_mask_surf+full_mask_netmat)
         clean_netmat = netmat[~full_mask_all]
         clean_surf = surf[~full_mask_all] #only keep does NOT in the mask, so inverse it
-        subj_mask = (np.where(full_mask_all==0)[0]) #false means good here, same as before with ~full_mask_all
+        subj_mask = np.where(full_mask_all==0)[0] #false means good here, same as before with ~full_mask_all
+        write_to_file(f"Final subject mask of good ones is: {len(subj_mask)} {subj_mask.sum()}", filepath=write_fpath)
         
         #subjects to keep so we can trac which have NaNs/INF for later
         if subject_list_path is None:
@@ -343,7 +348,6 @@ def fcn_get_clean_data(surf: np.array, netmat: np.array, subject_list_path: str,
                 else:
                     write_to_file("UNRECOGNIZED SAMPLE SIZE.", filepath=write_fpath)
                     
-            
             subject_list = sub_ids["subID"].to_numpy() #needs to be numpy for later indecing based on mask
         else: #if one is given, just use what it is, load it and make it numpy
             sub_ids = pd.read_csv(subject_list_path)

@@ -87,8 +87,10 @@ def whole_model_arch(config):
     # model_output_names = ["kSiTLN", "kvSiTLN", "kSiTBGT", "kvSiTBGT"]
     datasets = config['training']['dataset_choice'] #"ABCD" #["HCPYA", "ABCD"]
     # chosen_one = 0  #corresponds to ["kSiTLN", "kvSiTLN", "kSiTBGT", "kvSiTBGT"]
-    # dataset_choice = 1 # 0==HCPYA, 1==ABCD, 2==HCPYA_ABCDdr 
-    model_details = config['transformer']['model_details'] #"d12h6_adamW_cosinedecay_recon_MSEtrain_1L_full_demean_expDeepBase_wGelu_102825" #"d6h3_adamW_cosinedecay_recon_krakenonly_1R_082925"  #"d6h3_adamW_cosinedecay_recon_krakenonly_1L_full_100425" 
+    # dataset_choice = 1 # 0==HCPYA, 1==ABCD, 2==HCPYA_ABCDdr
+    hemi_cond = config['training']['hemi_cond']
+    netmat_prep_choice = config['training']['netmat_prep_choice']
+    model_details = config['transformer']['model_details'].format(hemi_cond,parcellation_corr_type,translation,netmat_prep_choice) #"d12h6_adamW_cosinedecay_recon_MSEtrain_1L_full_demean_expDeepBase_wGelu_102825" #"d6h3_adamW_cosinedecay_recon_krakenonly_1R_082925"  #"d6h3_adamW_cosinedecay_recon_krakenonly_1L_full_100425" 
     model_test_type = config['testing']['chosen_test_model'] #"MSE" #["MSE", "MAE", "RHO", "LAST"]
     img_extension = 'png' # png or eps #MICCAI file extension for images preferred
     model_type = config['data']['model_type'] #model_output_names[chosen_one]
@@ -257,8 +259,10 @@ def whole_model_arch(config):
     #                 "Flnkr",
     #                 "LSWMT",
     #                 "Readoral"]
-    behv_of_interest_list = ["nc_y_nihtb__comp__cryst__uncor_score", "nc_y_nihtb__comp__fluid__uncor_score"]
-    behv_type_list=["Crystal", "Fluid"]
+    behv_of_interest_list = ["nc_y_nihtb__comp__cryst__uncor_score",
+        "nc_y_nihtb__comp__fluid__uncor_score"]
+    behv_type_list=["Crystal",
+        "Fluid"]
     for pp in range(len(behv_of_interest_list)):
         behv_of_interest=behv_of_interest_list[pp]
         print(f"Behv path file is: {beh_path}")
@@ -490,7 +494,7 @@ def whole_model_arch(config):
 
         plt.tight_layout()
 
-        filename = f"/test_downstream_brainbehv.{img_extension}"
+        filename = f"/test_downstream_{behv_type}_brainbehv.{img_extension}"
         plt.savefig(directory + filename, format=img_extension)
         plt.close()
 

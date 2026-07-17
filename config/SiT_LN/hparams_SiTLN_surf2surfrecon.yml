@@ -1,6 +1,9 @@
 # @Author: Samuel Naranjo Rincon
 # @Last Modified time: JAN 27 2026
 
+identification:
+  unique_ID: 120425_d6h3_tiny_adamW_cosinedecay_reconICA_MSEtrain_expICARECON_chnl15
+
 data:
   data_path: ../data/{}/{} #../data/{}/{}
   translation: ICAd15_ICAd15 # mesh dim -> nemat dim
@@ -8,15 +11,17 @@ data:
   model_type: kSiTLN
   from_parcellation: 100
   to_icamap: 15
-  subico: 1
+  icores: 02 #0X 
+  parcellation_name: ICAmaps
 
 logging:
   folder_to_save_model: ../logs/SiT/
-  sanity_file_pth: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/batch/kSiTLN_recon_normICAnormICA
-  test_file_pth: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/batch/kSiTLN_recon_normICAnormICA_test.print
-
+  sanity_file_pth: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/batch/SiTLN_recon_normICAnormICA_chnl15
+  test_file_pth: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/batch/SiTLN_recon_normICAnormICA_test_chnl15
   model_out_root: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/model_out
-  sanity_check_version: surf2surfrecon_krakenonly
+  # model_save_path: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/surf2netmat/logs
+  model_save_path: /ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch/NeuroTranslate/logs
+  # sanity_check_version: surf2surfrecon_krakenonly
 
 training:
   fcn_train: train_MSE_skewloss
@@ -31,8 +36,8 @@ training:
   bilateral_condition: False #if true, uses 2LR, else just 1L
   hemi_cond: 1L
   channel_specific_condition: True #if true, does predictions on a single channel
-  specific_channel: 14 #0-ICA_dim, so ICAd15 => 0,1,...,14 ## 1 = DMN in this case
-  specific_channel_end: 14 # [6,8,11,14] #int or list is list then its list of channels to exclude
+  specific_channel: 15 #0-ICA_dim, so ICAd15 => 0,1,...,14 ## 1 = DMN in this case
+  specific_channel_end: 15 # [6,8,11,14] #int or list is list then its list of channels to exclude
   netmat_prep_choice: demean #norm or fisherz or demean, None
   surf_prep_choice: norm
   parcellation_corr_type: full
@@ -59,7 +64,8 @@ transformer:
   krak_corrEYE_weight: 1 #1000
   skew_weight: 1
   rho_loss_weight: 1
-  model_details: 122925_d6h3_tiny_adamW_cosinedecay_reconICA_MSEtrain_expICARECON
+  # old version  --> 122925_d6h3_tiny_adamW_cosinedecay_reconICA_MSEtrain_expICARECON
+  model_details: 120425_d6h3_tiny_adamW_cosinedecay_reconICA_MSEtrain_expICARECON_chnl15
 
 optimisation:
   optimiser: AdamW # SGD = stochastic gradent descent; Adam = Adam optimization
@@ -91,18 +97,6 @@ CosineDecayRestart:
   T_0: 25 #Number of iterations until the first restart.
   T_mult: 1 #A factor by which T_i increases after a restart. Default: 1.
   eta_min: 0.00001
-
-# CosineDecay:
-#   T_max: 30 #5000. is original, # 25 for now because it seems to converge at that epoch which could be a local minima
-#   eta_min: 0.000001
-  
-# StepLR: 
-#   stepsize: 1000
-#   decay: 0.5
-
-# CosineDecay:
-#   T_max: 5000
-#   eta_min: 0.0001
 
 sub_ico_0:
     num_patches: 20 

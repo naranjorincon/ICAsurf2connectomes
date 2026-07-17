@@ -113,20 +113,19 @@ def whole_model_arch(config):
     translation= config['data']['translation']
     version = config['data']['version']
     model_type = config['data']['model_type']
+    hemi_cond = config['training']['hemi_cond']
+    bilateral_condition = config['training']['bilateral_condition']
     # get ico resolution
-    try: #since this is a new thing added, putting this here so that previous yml files without it can run assuming they were done with ico02
-        icores = config['data']['icores']
-    except:
-        icores="2"
+    icores = config['data']['icores']
 
     if flag_experiment_ICArecon:
-        model_details = config['transformer']['model_details'] + f'_chnl{specific_channel}' # if YES specific channel, then per channel save model with that channel
-        write_fpath = config['logging']['sanity_file_pth'].format(model_type, version, parcellation_name, from_parcellation) + f'_ico-0{icores}' +  f'_chnl{specific_channel}.print'
+        model_details = config['transformer']['model_details'].format(hemi_cond,parcellation_corr_type,translation,netmat_prep_choice) # if YES specific channel, then per channel save model with that channel
+        write_fpath = config['logging']['sanity_file_pth'].format(model_type, version, parcellation_name, from_parcellation, parcellation_corr_type) + '.print'
     else:
-        model_details = config['transformer']['model_details'] # if not specicfic channel then save as normal
-        write_fpath = config['logging']['sanity_file_pth'].format(model_type, version, parcellation_name, from_parcellation) + f'_ico-0{icores}.print'
+        model_details = config['transformer']['model_details'].format(hemi_cond,parcellation_corr_type,translation,netmat_prep_choice) # if not specicfic channel then save as normal
+        write_fpath = config['logging']['sanity_file_pth'].format(model_type, version, parcellation_name, from_parcellation, parcellation_corr_type) + '.print'
 
-    write_to_file(f"Using ICAd15_ico0{icores} surf data.", filepath=write_fpath)
+    write_to_file(f"Using ico-{icores} surf data.", filepath=write_fpath)
     write_to_file(f"details are: {model_details}", filepath=write_fpath)
     
     device = "cpu"
@@ -146,7 +145,6 @@ def whole_model_arch(config):
         os.makedirs(folder_to_save_losses)
 
     data_root_path = "/ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch"
-
     # for TESTING #
     chosen_test_model = config['testing']['chosen_test_model']
     folder_to_save_test=f'{model_out_root}/{translation}/{dataset_choice}/{model_type}/{version}/{model_details}/{chosen_test_model}'
@@ -155,9 +153,6 @@ def whole_model_arch(config):
         os.makedirs(folder_to_save_test)
 
     ############################################# LOAD IN NETMATS AND SURFACE MESHES #############################################
-    # if bilateral_condition:
-    hemi_cond = config['training']['hemi_cond']
-    bilateral_condition = config['training']['bilateral_condition']
     if dataset_choice == "HCPYA":
         if parcellation_corr_type == "full":
             train_netmat_np = np.load(f"{data_root_path}/surface-vision-transformers/data/ICAd15_schfd100/template/{hemi_cond}_train_labels.npy") 
@@ -274,27 +269,25 @@ def whole_model_arch(config):
             write_to_file(f'SHAPE: {train_surf_np.shape} -- should be NxPxV', filepath=write_fpath)
             val_surf_np = val_surf_np[:,cc:specific_channel_end,:,:]
             te_surf_np = te_surf_np[:,cc:specific_channel_end,:,:]
-            # train_surf_np = np.expand_dims(train_surf_np, axis=1)
-            # val_surf_np = np.expand_dims(val_surf_np, axis=1) # channel axis is 1 so expand that to keep shape BxCxPxV ow you get BxPxV
-            # te_surf_np = np.expand_dims(te_surf_np, axis=1)
+            
         write_to_file(f'We expand on channel dim now. TRAIN SHAPE: {train_surf_np.shape} -- should be Nx1xPxV after expansion', filepath=write_fpath)
         write_to_file(f'We expand on channel dim now. VAL SHAPE: {val_surf_np.shape} -- should be Nx1xPxV after expansion', filepath=write_fpath)
         write_to_file(f'We expand on channel dim now. TEST SHAPE: {te_surf_np.shape} -- should be Nx1xPxV after expansion', filepath=write_fpath)
 
     if flag_experiment_ICArecon:
         write_to_file(f"CHOSEN TO RECONSTRUCT ICA MAPs! {flag_experiment_ICArecon}", filepath=write_fpath)       
-        tr_loader, val_loader, mean_train_label = fcn_prep_data_get_loaders_ICAren(train_surface=train_surf_np, validation_surface=val_surf_np, b_sz=batch_size, write_fpath=write_fpath)
+        tr_loader, val_loader, mean_train_label, train_subjects_to_keep, validation_subjects_to_keep = fcn_prep_data_get_loaders_ICAren(train_surface=train_surf_np, validation_surface=val_surf_np, b_sz=batch_size, write_fpath=write_fpath)
         if TEST_FLAG:
-            tr_loader_for_test, te_loader, _ = fcn_prep_data_get_loaders_ICAren(train_surface=train_surf_np, validation_surface=te_surf_np, b_sz=te_batch_size, write_fpath=write_fpath)
+            tr_loader_for_test, te_loader, _, _, test_subjects_to_keep = fcn_prep_data_get_loaders_ICAren(train_surface=train_surf_np, validation_surface=te_surf_np, b_sz=te_batch_size, write_fpath=write_fpath)
     
     else:
         write_to_file(f"regular training, not ICA recon.", filepath=write_fpath)
-        tr_loader, val_loader, mean_train_label, train_subjects_to_keep, validation_subjects_to_keep = fcn_prep_data_get_loaders(train_netmat=train_netmat_np, train_surface=train_surf_np, validation_netmat=val_netmat_np, validation_surface=val_surf_np, parcellation_N=from_parcellation, netmat_prep_choice=netmat_prep_choice, surf_prep_choice=surf_prep_choice, b_sz=batch_size, write_fpath=write_fpath)
+        tr_loader, val_loader, mean_train_label, train_subjects_to_keep, validation_subjects_to_keep = fcn_prep_data_get_loaders(train_netmat=train_netmat_np, train_surface=train_surf_np, validation_netmat=val_netmat_np, validation_surface=val_surf_np, parcellation_N=from_parcellation, netmat_prep_choice=netmat_prep_choice, surf_prep_choice=surf_prep_choice, b_sz=batch_size, write_fpath=write_fpath,bilateral_condition=bilateral_condition)
         if TEST_FLAG:
             tr_loader_for_test, te_loader, _, _, test_subjects_to_keep = fcn_prep_data_get_loaders(train_netmat=train_netmat_np, train_surface=train_surf_np, validation_netmat=te_netmat_np, validation_surface=te_surf_np, parcellation_N=from_parcellation, netmat_prep_choice=netmat_prep_choice, surf_prep_choice=surf_prep_choice, b_sz=te_batch_size, write_fpath=write_fpath, bilateral_condition=bilateral_condition)
-        
+        write_to_file(f"len of test subejct to keep {len(test_subjects_to_keep)}", filepath=write_fpath)
+    
     write_to_file(f"Loaded in data. Tunning on dataset: {dataset_choice}", filepath=write_fpath)
-    write_to_file(f"len of test subejct to keep {len(test_subjects_to_keep)}", filepath=write_fpath)
     # because any parcellation given is NxN symm matrix, no need to netmat.shape to get sizes, we already know them from "from_parcellation" variable
     _, dim_c, dim_p, dim_v = train_surf_np.shape
     _, upper_tri = train_netmat_np.shape
@@ -377,9 +370,22 @@ def whole_model_arch(config):
     model_params = sum(p.numel() for p in model.parameters())
     write_to_file(f"Model params: {model_params}", filepath=write_fpath)
 
-    # reset params 
-    model._reset_parameters()
-
+    #if using existing model
+    use_existing_model=True
+    if use_existing_model is True:
+        path_to_model=folder_to_save_model
+        write_to_file(f'\nUsing existing model. {path_to_model}\nDetails:*{model_details}_{chosen_test_model}.pt', filepath=write_fpath)
+        model_path = sorted(glob.glob(f"{path_to_model}/*{model_details}_{chosen_test_model}.pt")) # look at training script for details, but all models saves as type_details_chosen: ex-kBGTLN_d6h5_demeanL2_skewloss_RHO.pt
+        chosen_model = model_path[0]
+        write_to_file(f'\n\nmodel loaded is {chosen_model}', filepath=write_fpath)
+        model.load_state_dict(torch.load(chosen_model)) # most recent model
+        #train for 30 more
+        train_epoch_range=51
+    else:
+        # reset params 
+        model._reset_parameters()
+    
+    model.to(device)
     running_train_loss = 0
     # running_val_loss = 0
     df_train = pd.DataFrame(columns=['train_mae', 'train_mae_sigma', 'train_mse', 'train_mse_sigma', 'train_loss', 'train_demean_corr', 'train_demean_corr_sigma', 'train_orig_corr', 'train_orig_corr_sigma'])
