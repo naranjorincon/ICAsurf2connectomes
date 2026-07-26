@@ -35,8 +35,6 @@ import os
 import math
 import argparse
 import yaml
-# from scipy.stats import * #false_discovery_control
-
 
 # %%
 ## HELPER FUCNTIONS FOR LARET
@@ -74,7 +72,9 @@ def whole_model_arch(config):
     parcellation_corr_type=config['training']['parcellation_corr_type']
 
     if translation == "ICAd15_ICAd15":
-        assert 0==1, "Forced FALSE to stop downstream analyses. No such thing for ICA-->ICA testing."
+        import sys
+        print("Forced FALSE to stop downstream analyses. No such thing for ICA-->ICA testing.")
+        sys.exit()
 
     version = config['data']['version'] #"normICAdemeanMAT" #normICAdemeanfishzMAT normICArawMAT
     local_flag=False

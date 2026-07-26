@@ -14,7 +14,7 @@
 # to use the transformer pipeline as in Dahan et al 2021 (https://arxiv.org/abs/2203.16414), I need to first resample our brain_maps 
 # into a tessellated sphere with batches of equal size. Our brain maps are contained within the cifti file dtseries.nii
 # which is a 'dense time series' cifti file - don't be confused by the nii, its NOT a volume file in the way regular nii or nii.gz
-# files are. This script is meant ot be used to conver brain maps of ICA contained in the brain_representation folder
+# files are. This script is meant ot be used to convert brain maps of ICA contained in the brain_representation folder
 # into left and right spheres that represent left and right cortex, respectively. 
 # info can be found in:
 # 1. https://manpages.debian.org/testing/connectome-workbench/wb_command.1.en.html#Maps
@@ -24,13 +24,12 @@
 
 module load workbench  # /1.5.0, we don't have 1.5.0 anymore I think we now have the more updated one. Lets try and use the updated one to see if it still works.
 
-dataset="infomap_prior_ABCDdr" #ABCD or HCPYA or HCPYA_ABCDdr
+dataset="ABCD_v6" #ABCD or HCPYA or HCPYA_ABCDdr
 
-# step 1: make a folder for where we will put our brian data
+# step 1: make a folder for where we will put our brain data
 scratch_dir="/ceph/chpc/shared/janine_bijsterbosch_group/naranjorincon_scratch" #technically not scratch, but no need to change variable name
 surface_root="${scratch_dir}/NeuroTranslate/brain_reps_datasets/${dataset}"
 mkdir -p "${surface_root}" #-p is option to make dir and anything along the way if it don't exist yet
-
 # step 2: extract the L and R cortex data from the dense time series from each subj and move to the dir we made
 if [ "${dataset}" == "HCPYA" ]; then
     mapdata="/ceph/chpc/shared/janine_bijsterbosch_group/tyoeasley/brain_representations/ICA_reps/3T_HCP1200_MSMAll_d25_ts2_Z/component_maps"
@@ -87,8 +86,8 @@ elif [ "${dataset}" == "ABCD" ]; then
     mapdata="${scratch_dir}/NeuroTranslate/generate_ICA/ABCD_ICA/ICAd15/groupICA15.dr/dr_output/" #dr_{SUBJID}/surf.dscalar.nii
 
     # comments to know what's happening
-    echo "getting data from $mapdata and transferring to $surface_root"
-    cd "$mapdata"
+    echo "getting data from ${mapdata} and transferring to ${surface_root}"
+    cd "${mapdata}"
     # for all subjects makes their L and R data
     count=0
     for dd in dr*; do
@@ -98,13 +97,13 @@ elif [ "${dataset}" == "ABCD" ]; then
         # cd ${dd} # inside subject
         dr_file="surf.dscalar.nii"
         id_num=("${dd#*_}") # subject file to transform
-        wb_command -cifti-separate "${dd}/${dr_file}" COLUMN -metric CORTEX_LEFT "$surface_root/${id_num}_subj_L_cortex.shape.gii"; 
-        wb_command -cifti-separate "${dd}/${dr_file}" COLUMN -metric CORTEX_RIGHT "$surface_root/${id_num}_subj_R_cortex.shape.gii"; 
+        wb_command -cifti-separate "${dd}/${dr_file}" COLUMN -metric CORTEX_LEFT "${surface_root}/${id_num}_subj_L_cortex.shape.gii"; 
+        wb_command -cifti-separate "${dd}/${dr_file}" COLUMN -metric CORTEX_RIGHT "${surface_root}/${id_num}_subj_R_cortex.shape.gii"; 
 
     done
 
     # now we reformat from that space to ico6
-    cd "$surface_root"
+    cd "${surface_root}"
     if test -e "./naranjo_ico.L.surf.gii"; then # if it DOES exist
         echo "Already made the ico6 template spheres"
     else
@@ -127,12 +126,12 @@ elif [ "${dataset}" == "ABCD" ]; then
     mv *cortex* ./original_space
 
 elif [ "${dataset}" == "ABCD_v6" ]; then
-    mapdata="/ceph/chpc/shared/janine_bijsterbosch_group/WAPIAW_2026/ICA/ABCD_ICAd20_4mm/ABCD_ICAd20_4mm.dr/dr_output/neurotranslate_subset" #path to surface data
-    map_dimension_icores="ICA_d20_ico06"
+    ICA_dim_chosen=15
+    mapdata="/ceph/chpc/shared/janine_bijsterbosch_group/WAPIAW_2026/ICA/ABCD_ICAd${ICA_dim_chosen}_4mm/ABCD_ICAd${ICA_dim_chosen}_ses-all_C.dr/dr_output" #path to surface data
+    map_dimension_icores="ICA_d${ICA_dim_chosen}_ico06"
     output_path_resampled_spheres="${surface_root}/ICA_maps/${map_dimension_icores}"
     mkdir -p "${output_path_resampled_spheres}"
 
-    # comments to know what's happening
     echo "getting data from ${mapdata} and transferring to ${surface_root}"
     cd "${mapdata}"
     # for all subjects makes their L and R data
@@ -140,12 +139,10 @@ elif [ "${dataset}" == "ABCD_v6" ]; then
     for dd in dr*; do
         count=$[count +1 ];
         echo "Inside subject: ${count}"
-        
         dr_file="surf.dscalar.nii"
         id_num=("${dd#*_}") # subject file to transform
         wb_command -cifti-separate "${dd}/${dr_file}" COLUMN -metric CORTEX_LEFT "${output_path_resampled_spheres}/original_${id_num}_subj_L_cortex.shape.gii"; 
         wb_command -cifti-separate "${dd}/${dr_file}" COLUMN -metric CORTEX_RIGHT "${output_path_resampled_spheres}/original_${id_num}_subj_R_cortex.shape.gii"; 
-
     done
 
     # now we reformat from that space to ico6

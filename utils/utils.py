@@ -43,13 +43,13 @@ def make_netmat(data, netmat_dim=100):
     np.fill_diagonal(out_mat_init, 1)
     return out_mat_init # returns netmat version from vector form
 
-def make_netmat_into_trinagle(data, netmat_dim=100, upper_trinagle=None):
+def make_netmat_into_trinagle(data, netmat_dim: int=100, upper_trinagle: bool=True):
     '''
     takes vectorized triangle data and turns it into a netmat with 0 mask depending on which is chosen
     '''
     sing_sub = int((netmat_dim * (netmat_dim-1))/2) #parcellation upper/lower trinagle elements
     out_mat_init = np.zeros(2*sing_sub+netmat_dim).reshape(netmat_dim,netmat_dim)
-    if upper_trinagle:
+    if upper_trinagle is True:
         # inds_tri = np.triu_indices_from(out_mat_init,k=1) # k=1 means no diagonal
         inds_tri = np.tril_indices_from(out_mat_init,k=-1) 
         out_mat_init[inds_tri] = data #presumably, data is from upper triangle from matlab but needs index lower trinagle to have good visuals not sure why...

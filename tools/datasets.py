@@ -47,19 +47,14 @@ class dataset_cortical_surfaces(Dataset):
             self.patching=True
             self.channels = config['data']['channels']
             self.num_channels = len(self.channels)
-          
         else:
             raiseExceptions('model not implemented yet')
 
         ################################################
         ##############       LABELS       ##############
         ################################################
-
-
-        self.data_info = pd.read_csv('{}/labels/{}/{}/half/{}.csv'.format(config['data']['path_to_workdir'],
-                                                                                self.dataset,
-                                                                                self.task,
-                                                                                split))
+        self.data_info = pd.read_csv('{}/labels/{}/{}/half/{}.csv'.format(config['data']['path_to_workdir'], 
+                                                                          self.dataset, self.task, split))
 
         self.filenames = self.data_info['ids']
         self.labels = self.data_info['labels']
@@ -67,8 +62,6 @@ class dataset_cortical_surfaces(Dataset):
         ###################################################
         ##############       NORMALISE       ##############
         ###################################################
-
-
         if self.normalise=='group-standardise':
         
             self.means = np.load('{}/labels/{}/cortical_metrics/{}/{}/{}/means.npy'.format(config['data']['path_to_workdir'],
@@ -86,7 +79,6 @@ class dataset_cortical_surfaces(Dataset):
         ########################################################################
         ##############       DATA AUGMENTATION & PROCESSING       ##############
         ########################################################################
-        
         self.triangle_indices = pd.read_csv('{}/patch_extraction/triangle_indices_ico_{}_sub_ico_{}.csv'.format(config['data']['path_to_workdir'],ico,sub_ico))
 
         #config, augmentation
@@ -133,9 +125,7 @@ class dataset_cortical_surfaces(Dataset):
         label = self.labels.iloc[idx]
 
         ### hemisphere
-
         data = self.get_half_hemi(idx)
-
         if (self.augmentation and self.split =='train'):
             # do augmentation or not do augmentation
             if np.random.rand() > (1-self.augmentation):
